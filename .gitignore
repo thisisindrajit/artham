@@ -45,3 +45,5 @@ agent/.venv/
 agent/__pycache__/
 agent/**/__pycache__/
 agent/.adk/
+
+package-lock.json
