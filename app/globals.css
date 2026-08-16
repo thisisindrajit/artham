@@ -1,26 +1,484 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Colours are deliberately NOT `inline`: `@theme inline` bakes literal values
+   into the generated utilities, which would make `.story-stage` unable to
+   re-declare them for its dark surface. Non-inline keeps utilities pointing at
+   `var(--color-*)`, so the override below cascades. */
+@theme {
+  /* The chrome is greyscale on purpose. Colour in this product means one of
+     two things and nothing else: which subject you are in (--color-accent,
+     set per domain below) or how it went (rose / sage). */
+  --color-ink: #171717;
+  --color-muted: #5b5b5b;
+  --color-faint: #6e6e6e;
+  --color-line: rgba(23, 23, 23, 0.13);
+  --color-panel: #ffffff;
+  --color-paper: #fafafa;
+  --color-primary: #171717;
+  --color-primary-ink: #ffffff;
+  /* Placeholder greys. A [data-domain] block always overrides these. */
+  --color-accent: #3f3f3f;
+  --color-rose: #b3261e;
+  --color-sage: #2f6d3f;
+  /* The one fixed splash of brand colour, independent of subject. Decorative
+     only - never carries meaning, so it is not held to a text contrast bar. */
+  --color-pop: #ff6900; /* orange-500 */
+}
+
+:root {
+  color-scheme: light;
+  /* The page is white. Full stop. Depth comes from colour and shadow, never
+     from greying the paper down - a grey wash under white cards reads as
+     dirty rather than deep. */
+  --bg-0: #ffffff;
+  /* The accent as a raw triplet, so backdrops and tints can vary the alpha
+     without needing a token per opacity. */
+  --accent-rgb: 90 90 90;
+  --accent-bright: #d4d4d4;
+  --accent-bright-rgb: 212 212 212;
+  /* The page background is plain white. No ambient wash, no grid, no grain -
+     colour enters only through the stage art, the accents and the cards. */
+  /* One overshooting curve, used everywhere something should feel springy. */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* The "under-shadow" of pressable things. */
+  --press: #000000;
+}
+
+/* ---------------- subjects ----------------
+
+   Each subject gets exactly one stock Tailwind -500. The colour is used as
+   material (tints, borders, pips, bars and doodles), never as body copy.
+   Typography stays neutral, which keeps the palette poppy without creating
+   dark, high-contrast cyan / purple labels.
+
+   The dark story stage uses the same -500 too. It is decorative there rather
+   than a text colour, so there is no hidden lighter shade. */
+
+[data-domain="physics"] {
+  --color-accent: #00b8db;        /* cyan-500 */
+  --accent-rgb: 0 184 219;
+  --accent-bright: #00b8db;       /* cyan-500 */
+  --accent-bright-rgb: 0 184 219;
+}
+
+[data-domain="chemistry"] {
+  --color-accent: #8e51ff;        /* violet-500 */
+  --accent-rgb: 142 81 255;
+  --accent-bright: #8e51ff;       /* violet-500 */
+  --accent-bright-rgb: 142 81 255;
+}
+
+[data-domain="economics"] {
+  --color-accent: #00bc7d;        /* emerald-500 */
+  --accent-rgb: 0 188 125;
+  --accent-bright: #00bc7d;       /* emerald-500 */
+  --accent-bright-rgb: 0 188 125;
+}
+
+[data-domain="biology"] {
+  --color-accent: #f6339a;        /* pink-500 */
+  --accent-rgb: 246 51 154;
+  --accent-bright: #f6339a;       /* pink-500 */
+  --accent-bright-rgb: 246 51 154;
+}
+
+[data-domain="history"] {
+  --color-accent: #fe9a00;        /* amber-500 */
+  --accent-rgb: 254 154 0;
+  --accent-bright: #fe9a00;       /* amber-500 */
+  --accent-bright-rgb: 254 154 0;
+}
+
+html,
+body {
+  background: var(--bg-0);
+  color: var(--color-ink);
+  font-family: 'Satoshi', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mood no longer tints the reading surface - it survives only as a data
+   attribute the stage art reads. */
+
+/* The one component rule Tailwind genuinely cannot express: a gradient border.
+   It needs two backgrounds clipped to different boxes, which has no utility
+   form. Everything else lives as Tailwind utilities in the markup. */
+.rainbow-pill {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(
+        95deg,
+        #00b8db 0%,
+        #8e51ff 26%,
+        #f6339a 50%,
+        #00bc7d 74%,
+        #fe9a00 100%
+      )
+      border-box;
+}
+
+/* The torn strip of tape holding the story sheet to the page. A `::before`
+   with a subject-tinted fill; `before:` utilities cannot set `content` plus
+   this much geometry legibly. */
+.story-sheet::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  right: 13%;
+  z-index: 1;
+  width: 72px;
+  height: 18px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.22);
+  background: rgb(var(--accent-rgb) / 0.2);
+  box-shadow: 0 2px 5px rgba(23, 23, 23, 0.08);
+  transform: rotate(2.5deg);
+}
+
+/* ---------------- motion ---------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.slide-up {
+  animation: slide-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-400px);
+  }
+}
+.deck-wave {
+  animation: drift 6s linear infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes stage-copy {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.stage-copy {
+  animation: stage-copy 220ms ease-out both;
+}
+
+@keyframes story-wind {
+  from {
+    transform: translateX(-28px);
+  }
+  to {
+    transform: translateX(28px);
+  }
+}
+.story-wind {
+  animation: story-wind 4s ease-in-out infinite alternate;
+}
+
+@keyframes story-rain {
+  from {
+    transform: translate(8px, -24px);
+  }
+  to {
+    transform: translate(-8px, 24px);
+  }
+}
+.story-rain {
+  animation: story-rain 1.1s linear infinite;
+}
+
+@keyframes story-scan {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.story-scan {
+  animation: story-scan 2.2s ease-in-out infinite;
+}
+
+@keyframes story-deck-shake {
+  0%,
+  100% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+.story-deck-shake {
+  animation: story-deck-shake 0.75s ease-in-out infinite;
+}
+
+@keyframes story-weight {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+.story-weight {
+  animation: story-weight 2.6s ease-in-out infinite;
+}
+
+@keyframes story-bubble {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+.story-bubble {
+  animation: story-bubble 2.4s ease-in infinite;
+}
+
+@keyframes story-plume {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-10px) scale(1.12);
+    opacity: 0.7;
+  }
+}
+.story-plume {
+  animation: story-plume 3s ease-in-out infinite;
+}
+
+@keyframes story-flicker {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  45% {
+    opacity: 0.3;
+  }
+}
+.story-flicker {
+  animation: story-flicker 3.4s ease-in-out infinite;
+}
+
+.story-live-dot {
+  box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0.5);
+  animation: live-dot 1.8s ease-out infinite;
+}
+
+@keyframes live-dot {
+  70% {
+    box-shadow: 0 0 0 6px rgb(var(--accent-rgb) / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .slide-up,
+  .pulse-soft,
+  .deck-wave,
+  .stage-copy,
+  .story-wind,
+  .story-rain,
+  .story-scan,
+  .story-deck-shake,
+  .story-weight,
+  .story-bubble,
+  .story-plume,
+  .story-flicker,
+  .story-live-dot {
+    animation: none !important;
+  }
+}
+
+/* ---------------- controls ---------------- */
+
+input[type="range"].deck-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 34px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].deck-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--track);
+}
+input[type="range"].deck-slider::-moz-range-track {
+  height: 2px;
+  background: var(--track);
+}
+input[type="range"].deck-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -8px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  box-shadow: 0 0 0 6px rgb(var(--accent-rgb) / 0.18);
+}
+input[type="range"].deck-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-ink);
+  box-shadow: 0 0 0 6px rgb(var(--accent-rgb) / 0.18);
+}
+
+/* The story stage is a night-time camera feed, so it stays dark while the rest
+   of the page is paper. Re-declaring the tokens here flips every Tailwind
+   colour utility used inside it, because the colour theme is not `inline`. */
+.story-stage {
+  --color-ink: #f4f4f4;
+  --color-muted: #9a9a9a;
+  --color-faint: #575757;
+  --color-line: rgba(244, 244, 244, 0.13);
+  /* The text-safe accent is tuned for white paper and vanishes against
+     near-black, so the dark island swaps in the bright counterpart. */
+  --color-primary: var(--accent-bright);
+  --color-accent: var(--accent-bright);
+  /* Tints drawn inside the stage art have to swap to the bright triplet too. */
+  --accent-rgb: var(--accent-bright-rgb);
+  --color-rose: #f0857c;
+  --color-sage: #8fc79a;
+  /* Redeclaring the tokens is not enough on its own: anything inside that does
+     not set a colour utility would still inherit the light-mode ink and go
+     invisible. Pin the inherited colour to the dark island's ink. */
+  color: var(--color-ink);
+}
+
+/* ---------------- keystroke press ----------------
+
+   Every pressable thing behaves like a keycap: it travels straight down on
+   press, and anything sitting on a hard "under-shadow" collapses that shadow
+   by the same distance, so the shadow reads as the gap the key closes.
+
+   Three deliberate choices here:
+
+   1. The travel uses `translate`, not `transform`. They are separate
+      properties, so the press composes with whatever `transform` a button
+      already uses for hover (lift, rotate, scale) instead of overwriting it.
+
+   2. The default transition lives in `@layer base` so that any component or
+      Tailwind utility transition still wins. Setting it unlayered would
+      REPLACE those lists - `transition` is a shorthand, so one careless
+      declaration silently drops a card's hover fade. Tailwind's `transition`
+      and `transition-transform` both already include `translate`, so the
+      utilities in the markup keep the press animated.
+
+   3. The press itself is unlayered, which outranks every `@layer` regardless
+      of specificity. That lets one rule reach every button in the app without
+      a class on each one, and without an `!important` arms race.
+
+   `--key-travel` is the single knob: set it per element to match the depth of
+   that element's under-shadow. It is registered with `inherits: false` so a
+   deep-travelling card can never leak its throw into a small button nested
+   inside it - each element gets the 2px initial value unless it says
+   otherwise. */
+
+@property --key-travel {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 2px;
+}
+
+@layer base {
+  button,
+  [role="button"],
+  summary {
+    transition: translate 130ms var(--ease-bounce);
+  }
+}
+
+/* Going down is faster than coming back up - a key meets its stop hard, then
+   the spring returns it. Equal timings both ways feel like rubber.
+
+   `[data-press]` is carried by the buttons and cards that sit on a hard
+   under-shadow. It is needed as well as the tag selectors because several of
+   them are anchors (the profile's "Try it another way" link, the scenario
+   cards), which `:not(:disabled)` never matches. */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active,
+summary:active,
+[data-press]:not(:disabled):active {
+  translate: 0 var(--key-travel);
+  transition-duration: 40ms;
+  transition-timing-function: ease-out;
+}
+
+/* Deeper shadow, longer throw. These sit 4px proud, so they travel 3px and
+   keep 1px of shadow - a key bottoming out, not one that punches through the
+   page. */
+[data-press="deep"] {
+  --key-travel: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active,
+  [role="button"]:active,
+  summary:active,
+  [data-press]:active {
+    translate: none;
+  }
 }
