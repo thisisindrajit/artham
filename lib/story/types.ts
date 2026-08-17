@@ -82,6 +82,31 @@ export interface ScenePrimer {
   like?: string;
 }
 
+/**
+ * A "did you know" card — the one true thing about this beat that nobody
+ * needed to know, and everybody enjoys knowing.
+ *
+ * Trivia is deliberately *not* load-bearing. A learner who skips every one of
+ * these still finishes the story with the same takeaway, which is what lets us
+ * write them for delight instead of for the test. Their job is to buy the
+ * story a breath between decisions and to make the world feel real: a siege
+ * engine that actually existed, a bridge that actually fell.
+ *
+ * The rules, enforced by `npm run verify`:
+ *   - it must be true, and it must be about the thing on this page;
+ *   - `text` is at most two sentences, because a third turns it into homework;
+ *   - it may never carry information the next decision depends on — put that
+ *     in a `ScenePrimer`, which the learner is told to read.
+ */
+export interface SceneTrivia {
+  /** One emoji standing for the fact. Rendered as the card's stamp. */
+  emoji: string;
+  /** A short headline, two to five words. */
+  title: string;
+  /** The fact itself, in one or two plain sentences. */
+  text: string;
+}
+
 export type StorySimulationKind =
   | "timed-pushes"
   | "storm-band"
@@ -148,6 +173,8 @@ interface SceneBase {
    * A decision that turns on two unfamiliar words may carry both.
    */
   primer?: ScenePrimer | ScenePrimer[];
+  /** Optional flavour fact, shown after the story text. Never load-bearing. */
+  trivia?: SceneTrivia;
 }
 
 export interface NarrativeScene extends SceneBase {

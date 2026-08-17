@@ -41,7 +41,7 @@ export function MarkerMatch() {
             A {markers}-marker profile fits{" "}
             <strong>{Math.round(people).toLocaleString()} people</strong> in this
             city alone. Finding one of them in a database is not surprising — it
-            is arithmetic. The match tells you he is <em>in the group</em>, not
+            is counting. The match tells you he is <em>in the group</em>, not
             that he did it.
           </>
         )
@@ -190,14 +190,14 @@ export function ContaminationPath() {
 
 export function SuspectFunnel() {
   const [searched, setSearched] = useState(240_000);
-  const matchChance = 1 / 18_000;
+  const matchChance = 1 / 4_096;
   const innocentHits = searched * matchChance;
   const misleading = innocentHits >= 1;
 
   return (
     <SimFrame
       eyebrow="who else did you ask"
-      hint="One profile, one chance in 18,000. Now choose how many people you compare it against."
+      hint="One profile, about one chance in 4,000. Now choose how many people you compare it against."
       badge={
         misleading
           ? { text: `${innocentHits.toFixed(0)} innocent hits expected`, tone: "rose" }
@@ -230,8 +230,8 @@ export function SuspectFunnel() {
         />
         <SimBar
           label="Innocent people expected to match"
-          value={Math.min(innocentHits, 18)}
-          max={18}
+          value={Math.min(innocentHits, 80)}
+          max={80}
           tone={misleading ? "rose" : "sage"}
           caption={
             innocentHits >= 1 ? innocentHits.toFixed(1) : innocentHits.toFixed(2)

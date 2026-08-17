@@ -17,7 +17,7 @@ import type {
   PreludeResponse,
   ThinkingProfile,
 } from "@/lib/partner/types";
-import type { Scenario, ThinkingObservation } from "@/lib/story";
+import type { Scenario, Scene, ThinkingObservation } from "@/lib/story";
 import { PartnerCard } from "./partner-card";
 import { PaperBackdrop } from "./paper-backdrop";
 import { ArthamMark } from "./artham-mark";
@@ -39,7 +39,10 @@ import {
   NarrativeView,
   ReflectView,
   ReorderView,
+  ReviewView,
+  SceneHeading,
   SliderView,
+  StoryNav,
 } from "./scenes";
 
 export function Session({ scenario }: { scenario: Scenario }) {
@@ -49,6 +52,14 @@ export function Session({ scenario }: { scenario: Scenario }) {
   const [thinking, setThinking] = useState(false);
   const [profile, setProfile] = useState<ThinkingProfile | null>(null);
   const [stagePreview, setStagePreview] = useState<string | null>(null);
+  /**
+   * The beat being re-read, or null while playing live.
+   *
+   * Kept out of the engine on purpose: looking back changes nothing about the
+   * run, so it must not be able to. The engine stays a pure record of what the
+   * learner actually did, and this is presentation only.
+   */
+  const [reviewing, setReviewing] = useState<string | null>(null);
 
   const callsUsed = useRef(0);
   const stateRef = useRef(state);
@@ -136,6 +147,7 @@ export function Session({ scenario }: { scenario: Scenario }) {
     (action: Action) => {
       const result = step(stateRef.current, action);
       setStagePreview(null);
+      setReviewing(null);
       commit(result.state);
       if (action.type !== "reasoning") setPartner(null);
       if (result.event) void consult(result.event);
@@ -176,7 +188,35 @@ export function Session({ scenario }: { scenario: Scenario }) {
   }
 
   const scene = currentScene(state);
-  const mood = state.pending && !state.pending.correct ? "alarm" : scene.mood;
+
+  /* Beats the learner has actually reached, in order — the pages the Previous
+     button is allowed to turn back to. Filtered against the scene list so a
+     stale id can never index past the end. */
+  const trail = state.visited.filter((id) =>
+    scenario.scenes.some((s) => s.id === id),
+  );
+  const liveIndex = Math.max(0, trail.indexOf(state.sceneId));
+  const reviewScene: Scene | null = reviewing
+    ? (scenario.scenes.find((s) => s.id === reviewing) ?? null)
+    : null;
+  const pageIndex = reviewScene ? trail.indexOf(reviewScene.id) : liveIndex;
+  const shownScene = reviewScene ?? scene;
+
+  const turnBack = () => {
+    const target = trail[pageIndex - 1];
+    if (target) setReviewing(target);
+  };
+  const turnNext = () => {
+    const nextIndex = pageIndex + 1;
+    if (nextIndex > liveIndex) return;
+    setReviewing(nextIndex === liveIndex ? null : trail[nextIndex]);
+  };
+
+  const mood = reviewScene
+    ? reviewScene.mood
+    : state.pending && !state.pending.correct
+      ? "alarm"
+      : scene.mood;
 
   return (
     <div
@@ -190,21 +230,23 @@ export function Session({ scenario }: { scenario: Scenario }) {
       <main className="relative mx-auto grid w-full max-w-[1600px] flex-1 items-start gap-8 px-6 py-10 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.2fr)] xl:grid-cols-[minmax(280px,0.85fr)_minmax(440px,1.25fr)_minmax(240px,0.65fr)] xl:gap-6 2xl:gap-10">
         <div className="order-1 lg:sticky lg:top-20 lg:col-start-1 lg:row-start-1 lg:self-start">
           <StoryStage
-            key={`${state.phase}-${scene.id}-${state.pending?.correct ?? "open"}`}
+            key={`${state.phase}-${shownScene.id}-${reviewScene ? "back" : (state.pending?.correct ?? "open")}`}
             visual={
               state.phase === "intro" || state.phase === "presession"
                 ? scenario.intro.visual
-                : scene.visual
+                : shownScene.visual
             }
             mood={mood}
             label={scenario.stageLabel}
             preview={stagePreview}
             result={
-              state.pending
-                ? state.pending.correct
-                  ? "success"
-                  : "warning"
-                : null
+              reviewScene
+                ? null
+                : state.pending
+                  ? state.pending.correct
+                    ? "success"
+                    : "warning"
+                  : null
             }
           />
         </div>
@@ -227,7 +269,11 @@ export function Session({ scenario }: { scenario: Scenario }) {
             />
           )}
 
-          {state.phase === "scene" && state.pending && (
+          {state.phase === "scene" && reviewScene && (
+            <ReviewView scene={reviewScene} notes={state.notes} />
+          )}
+
+          {state.phase === "scene" && !reviewScene && state.pending && (
             <ConsequenceView
               text={state.pending.text}
               correct={state.pending.correct}
@@ -235,8 +281,9 @@ export function Session({ scenario }: { scenario: Scenario }) {
             />
           )}
 
-          {state.phase === "scene" && !state.pending && (
+          {state.phase === "scene" && !reviewScene && !state.pending && (
             <>
+              <SceneHeading scene={scene} className="mb-5" />
               {scene.type === "narrative" && (
                 <NarrativeView
                   scene={scene}
@@ -287,11 +334,23 @@ export function Session({ scenario }: { scenario: Scenario }) {
               )}
             </>
           )}
+
+          {state.phase === "scene" && trail.length > 1 && (
+            <StoryNav
+              index={pageIndex}
+              total={liveIndex + 1}
+              reviewing={Boolean(reviewScene)}
+              onBack={turnBack}
+              onNext={turnNext}
+            />
+          )}
         </section>
 
         <StoryRecap
           scenario={scenario}
           state={state}
+          activeId={reviewScene?.id ?? state.sceneId}
+          onSelect={(id) => setReviewing(id === state.sceneId ? null : id)}
           className="order-2 lg:order-none lg:col-start-1 lg:row-start-2 lg:mt-0 xl:sticky xl:top-20 xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100dvh-6rem)]"
         />
       </main>
@@ -374,16 +433,11 @@ function PreSession({
 
   return (
     <div className="space-y-8">
-      <div className="rise flex items-start gap-4">
-        <ArthamMark size={36} />
-        <div>
-          <p className="mb-2 text-[13px] font-medium tracking-[0.18em] text-muted uppercase">
-            Artham
-          </p>
-          <p className="text-[17px] leading-relaxed text-ink/90">
-            {greeting}
-          </p>
-        </div>
+      <div className="rise">
+        <p className="mb-2 text-[13px] font-medium tracking-[0.18em] text-muted uppercase">
+          Artham
+        </p>
+        <p className="text-[17px] leading-relaxed text-ink/90">{greeting}</p>
       </div>
 
       <div className="rise space-y-3" style={{ animationDelay: "180ms" }}>
@@ -424,10 +478,10 @@ function Rail({ scenario, state }: { scenario: Scenario; state: PlayState }) {
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-white/80 shadow-[0_4px_18px_rgba(111,56,17,0.05)] backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <Link
           href="/"
-          className="group inline-flex items-center gap-2 text-[13px] tracking-[0.22em] text-faint uppercase transition hover:text-muted"
+          className="group inline-flex shrink-0 items-center gap-2 text-[13px] tracking-[0.22em] text-faint uppercase transition hover:text-muted"
         >
           <ArthamMark
             size={32}
@@ -435,7 +489,7 @@ function Rail({ scenario, state }: { scenario: Scenario; state: PlayState }) {
           />
         </Link>
         {state.phase === "scene" && (
-          <span className="text-[13px] tracking-[0.16em] text-faint uppercase">
+          <span className="min-w-0 truncate text-[13px] tracking-[0.16em] text-faint uppercase">
             Chapter {scene.act} · {scene.beat}
           </span>
         )}

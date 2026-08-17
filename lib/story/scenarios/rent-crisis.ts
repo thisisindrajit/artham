@@ -1,15 +1,13 @@
 import type { Scenario } from "../types";
 
 /**
- * The intuitive answer — cap the price — is the wrong one, which is exactly
- * why it earns its place: the engine is built to let a learner commit to a
- * belief, watch it fail, and come back. A cap moves the price on a piece of
- * paper; it does not move a single brick.
+ * The tempting answer is a rent cap. That is why the story starts there.
+ * A learner can try to lower the number, then see the queue grow. The lesson
+ * lands because the city keeps asking the same question: how many homes exist?
  *
- * Act 3 refuses to let "just build more" be a costless answer. Building is
- * slow, the people who need help cannot wait years, and the politics of the
- * council chamber are their own constraint. The final beat is a judgement
- * call, not a physics puzzle.
+ * Act 3 keeps the answer honest. Building more homes works, but it is slow.
+ * People like Elena need help before the cranes become keys. The final choice
+ * separates help for people from a rule that hides the shortage.
  */
 export const rentCrisis: Scenario = {
   id: "rent-crisis",
@@ -18,39 +16,40 @@ export const rentCrisis: Scenario = {
   domain: "economics",
   difficulty: "hard",
   learningGoal:
-    "Learn why capping a price doesn't create the thing people are queuing for — and what does.",
+    "Learn why a low legal price cannot create the homes people are waiting for.",
   takeaway: {
     concept: "Price caps and shortages",
-    field: "Economics \u2014 supply and demand",
+    field: "Economics — supply and demand",
     inOneLine:
-      "A rent cap changes the number on the contract. It does not change how many homes exist. When the price is held below the level that would clear the queue, more people want a home than there are homes \u2014 and the shortage gets rationed by waiting lists, luck and who you know instead of by price.",
+      "You found 90,000 families and 70,000 rental homes. A rent cap lowered the price on paper. It did not create the 20,000 missing homes.",
     rule:
-      "A price is a signal, not the cause. Push the signal down and you also push down the reason anyone builds, so the shortage gets worse. Fix a shortage by adding homes, not by changing the price. Use price rules only to protect specific people while the building catches up.",
+      "When a price is held too low, the line gets longer. The good fix is more homes. Short-term help should go to people who cannot wait.",
     elsewhere: [
-      "Fuel price caps that end in queues at the pump rather than cheap fuel.",
-      "Concert tickets priced below what fans will pay \u2014 they sell out in seconds and reappear on resale sites.",
-      "Below-cost water pricing in a drought, which quietly guarantees the taps run dry.",
-      "Subsidised university places: capping the fee does not build more lecture halls.",
+      "Fuel price caps can make pump lines longer. The rule lowers the sign, but it does not fill the tanks.",
+      "Cheap concert tickets sell out fast. The hall still has the same number of seats.",
+      "Low water prices during a drought can empty the taps. The price rule does not make rain.",
+      "Cheap college seats still need rooms and teachers. A low fee cannot build a bigger school.",
     ],
     youUsedIt: [
-      "You counted homes against families before you touched a single policy.",
-      "You watched the cap work exactly as promised for people already housed, and fail for everyone in the queue.",
-      "You split the money towards supply while naming the households who cannot wait for it.",
-      "You held the quantity, not the price, as the thing that actually had to move.",
+      "You counted 70,000 homes against 90,000 families before changing any rule.",
+      "You saw a $1,500 cap help some housed renters, while the list grew longer.",
+      "You unblocked 42,000 to 44,000 homes, because that range could pass and lower rent.",
+      "You split $400 million toward homes first, with quick help for people who could not wait.",
     ],
   },
   minutes: 12,
   stageLabel: "Halden city hall",
   partnerGreeting:
-    "I'll be in the room. You run the city; I'll pay attention to how you decide.",
+    "I’ll stay beside you. You run the city, and I’ll watch how you decide.",
   intro: {
     role: "new mayor of Halden",
-    cta: "Walk into city hall",
+    cta: "Start at city hall",
     text: [
-      "You won by four thousand votes, on one promise: rent.",
-      "Halden has 90,000 families and 70,000 homes to rent. The average rent is $2,500 a month. The average family here can carry about $1,800.",
-      "Nora, your chief of staff, meets you on the steps with a folder and no coffee.",
-      "“Councillor Brandt has already filed his rent cap bill,” she says. “The vote is in ninety days. Everyone in that building expects you to sign it.”",
+      "You won by four thousand votes on one promise: lower rent.",
+      "Halden has 90,000 families who need rental homes. It has 70,000 rental homes.",
+      "The average rent is $2,500 a month. The average family can safely pay $1,800.",
+      "Nora, your chief helper, meets you on the steps with a thick folder.",
+      "“Brandt has filed a rent cap bill,” she says. “The vote is in ninety days.”",
     ],
     visual: {
       kind: "city",
@@ -61,7 +60,7 @@ export const rentCrisis: Scenario = {
   },
   preSession: {
     prompt:
-      "Everyone already agrees on the answer. What do you do with your first week?",
+      "Everyone already says the answer is a cap. What do you do first?",
     options: [
       {
         id: "numbers",
@@ -96,16 +95,16 @@ export const rentCrisis: Scenario = {
       visual: {
         kind: "city",
         title: "The folder",
-        caption: "Forty thousand names on a waiting list that only grows.",
+        caption: "Twenty thousand names on a list that keeps growing.",
         status: "rent $2,500",
       },
       type: "narrative",
       text: [
-        "Your office smells of new paint. The folder is thicker than your arm.",
-        "Forty thousand families are on the housing list. Rent has gone up 60% in six years. Wages have gone up 14%.",
-        "Nora reads you one line from the folder: “Elena Vogt, staff nurse at Halden General, eleven years. Currently sleeping in her car in the hospital staff park.”",
-        "“She's not the sad exception,” Nora says. “She's the middle of the graph.”",
-        "Outside your window, three tower blocks. Half the windows are dark.",
+        "You open the folder 📄 in your new office. The first page has only two numbers.",
+        "There are 90,000 families looking for rental homes. There are 70,000 homes to rent.",
+        "That leaves 20,000 families on the city list. Rent has climbed for six years.",
+        "Nora points to one name: Elena, a nurse who sleeps in her car 🚗 after late shifts.",
+        "“She is not a strange case,” Nora says. “She is what the gap looks like.”",
       ],
       next: "e2",
     },
@@ -123,13 +122,13 @@ export const rentCrisis: Scenario = {
       primer: {
         term: "Homes and families",
         plain:
-          "two counts that sound alike and are not. Homes is how many places exist to live in. Families is how many households need one. The gap between those two numbers is what rent is really reporting.",
-        like: "chairs against guests \u2014 the music does not change how many chairs there are.",
+          "Homes means places that exist to live in. Families means households that need one. The gap is the real problem.",
+        like: "chairs and guests at a party. Music cannot make more chairs.",
       },
       type: "choice",
       text: [
-        "Councillor Brandt is outside your office with the bill and two journalists.",
-        "“$1,500 maximum, citywide, from the first of next month,” he says. “You promised. Sign it and we're heroes by Friday.”",
+        "The folder is still open when Brandt knocks with the bill in his hand.",
+        "“$1,500 a month, citywide, from next month,” he says. “Sign it and we win by Friday.”",
       ],
       prompt: "What do you do first?",
       concept:
@@ -139,17 +138,17 @@ export const rentCrisis: Scenario = {
         {
           id: "count",
           label: "Count the homes and count the families",
-          detail: "Find out whether Halden has a price problem or a shortage.",
+          detail: "See whether Halden has a price problem or a home problem.",
           correct: true,
           outcome:
-            "Priya pulls the housing register and the tenancy roll side by side. It takes twenty minutes to line them up, and when the two numbers finally sit next to each other, nobody in the room says anything for a while.",
+            "Nora puts the two counts on the wall. The room sees 90,000 families and 70,000 homes. Now the next question is simple: what made the gap?",
           approach: "measure_first",
           next: "e3",
         },
         {
           id: "sign",
-          label: "Sign Brandt's bill this week",
-          detail: "You promised. Deliver it before anyone talks you out of it.",
+          label: "Sign Brandt’s bill this week",
+          detail: "You promised. Deliver it before anyone argues again.",
           correct: false,
           approach: "act_first",
           next: "e2",
@@ -165,15 +164,15 @@ export const rentCrisis: Scenario = {
         {
           id: "freeze",
           label: "Freeze rents where they stand for six months",
-          detail: "Not a cap, just a pause \u2014 nobody loses anything they already have.",
+          detail: "Not a cap, just a pause.",
           correct: false,
           approach: "act_first",
           next: "e2",
         },
         {
           id: "study",
-          label: "Commission an eighteen-month expert review",
-          detail: "Nobody can attack you for wanting the evidence.",
+          label: "Order an eighteen-month expert review",
+          detail: "Nobody can attack you for wanting proof.",
           correct: false,
           approach: "follow_authority",
           next: "e2",
@@ -181,17 +180,17 @@ export const rentCrisis: Scenario = {
       ],
       consequences: {
         freeze:
-          "It buys quiet for a fortnight. Then Nora puts the register in front of you: a freeze is a cap wearing a softer word, and you still have no idea whether Halden is short of money or short of homes.",
-        sign: "Nora shuts the door behind the journalists. “Before you sign — do you know whether the problem is that rents are high, or that there aren't enough homes? Because those need opposite bills.”",
+          "The pause buys quiet for two weeks. Then the list keeps growing. A softer name still does not tell you whether Halden lacks money or homes.",
+        sign: "Nora closes the door. “Before you sign, answer one thing. Are rents high because homes are scarce, or for some other reason?”",
         landlords:
-          "Eleven of them come. They nod, they smile, and four of them quietly list their flats as holiday lets the following month. You cannot lean on a market that can simply leave.",
+          "They nod and smile. A month later, some flats become short-stay rentals. You pushed on people who could simply step away.",
         study:
-          "Nora does the maths out loud. “Eighteen months of review, then ninety days of drafting. Elena will have spent two winters in that car and you'll still be on page one.”",
+          "Nora taps Elena’s page. “Eighteen months is two more winters in that car. We need numbers now, not a shelf of reports.”",
       },
       hints: [
         "The bill sets a price. Do you know yet what is setting the price now?",
-        "Two very different problems look identical from outside: too little supply, or too much greed.",
-        "Count what exists and count what's wanted before you legislate a number.",
+        "Two problems can look the same: not enough homes, or unfair prices.",
+        "Count what exists and count who needs it before you choose a number.",
       ],
     },
     {
@@ -201,17 +200,17 @@ export const rentCrisis: Scenario = {
       beat: "The numbers",
       visual: {
         kind: "market",
-        title: "Two numbers that don't meet",
+        title: "Two numbers that don’t meet",
         caption: "90,000 families. 70,000 homes to rent.",
         status: "1,200 built last year",
       },
       type: "narrative",
       text: [
-        "It takes four days to get real numbers, and they are not complicated.",
-        "Halden has 70,000 homes on the rental market. About 90,000 families want one.",
-        "Last year the city built 1,200 homes. In the same year it added 9,000 new residents.",
-        "You ask why so few got built. Nora turns to the last page: the average permit in Halden takes four years and eleven months to approve.",
-        "“So the rent isn't high because someone decided to be greedy,” you say. “It's high because twenty thousand families are bidding for homes that don't exist.”",
+        "Nora’s team spends four days checking the gap. The answer does not change.",
+        "Halden has 70,000 rental homes. About 90,000 families want one.",
+        "Last year the city built 1,200 homes. In the same year, 3,000 new families joined the search.",
+        "The reason is on the last page. A building permit takes almost five years ⏳.",
+        "“So rent is high because 20,000 homes are missing,” you say. “A cap does not build them.”",
       ],
       next: "e4",
     },
@@ -227,24 +226,30 @@ export const rentCrisis: Scenario = {
         caption: "Drag it down and watch both bars, not just the price.",
         status: "day 9",
       },
+      trivia: {
+        emoji: "🗽",
+        title: "New York's oldest cap",
+        text: "Some homes in New York City still fall under a rent rule that started during World War Two.",
+      },
       type: "choice",
       text: [
-        "Nora has built you a model of Halden's rental market — a shortage of twenty thousand homes, drawn as two bars.",
-        "Drag the price cap around before you answer. Watch what happens to the number of homes people are willing to rent out.",
+        "Because the cap is still on the table, Nora turns the shortage into a model.",
+        "One bar is families looking. One bar is homes offered for rent.",
+        "Drag the price cap before you answer. Watch whether the bars move toward each other.",
       ],
       prompt: "If you cap rent at $1,500, what happens?",
       primer: [
         {
           term: "A shortage",
           plain:
-            "More families wanting homes than there are homes to rent. Price is simply how the argument over who gets one gets settled.",
-          like: "twenty people and twelve chairs. The problem was never that the chairs were expensive.",
+            "A shortage means more people want a thing than there are things to share. Someone still misses out.",
+          like: "twenty children and twelve chairs. The chair price was not the main problem.",
         },
         {
           term: "A price cap",
           plain:
-            "A law setting the most that may be charged for something. It controls the number on the contract, and nothing else about the deal.",
-          like: "a ceiling price on concert tickets. The hall still has exactly as many seats in it.",
+            "A price cap is a rule that sets the most someone may charge. It changes the price tag, not the amount.",
+          like: "a cheap ticket rule for a hall. The hall still has the same seats.",
         },
       ],
       concept:
@@ -253,18 +258,18 @@ export const rentCrisis: Scenario = {
       options: [
         {
           id: "shortage",
-          label: "Rent falls, and so does the number of homes on offer",
-          detail: "The families who get one pay less. Thousands more get nothing.",
+          label: "Rent falls on paper, but the queue gets longer",
+          detail: "Some housed families pay less. Many waiting families get nothing.",
           correct: true,
           outcome:
-            "Councillor Boyd frowns at the board. “So the people who keep their flat do brilliantly,” he says, “and the people looking for one are worse off than before.” “Yes,” says Priya. “And we only ever meet the first group.”",
+            "Brandt stares at the bars. At $1,500, only 50,000 homes are offered. The next task is to explain that chain in plain order.",
           approach: "seek_pattern",
           next: "e5",
         },
         {
           id: "everyone",
           label: "Everyone on the list gets a home at $1,500",
-          detail: "That's the whole point of the bill.",
+          detail: "That is the whole point of the bill.",
           correct: false,
           approach: "commit_to_hypothesis",
           next: "e4",
@@ -272,15 +277,15 @@ export const rentCrisis: Scenario = {
         {
           id: "nothing",
           label: "Nothing much — landlords absorb it",
-          detail: "They've made enough. They'll cope.",
+          detail: "They have made enough. They will cope.",
           correct: false,
           approach: "act_first",
           next: "e4",
         },
         {
           id: "build",
-          label: "Rent falls and builders rush in to meet the demand",
-          detail: "Cheaper city, more people, more building.",
+          label: "Rent falls and builders rush in",
+          detail: "A cheaper city brings more building.",
           correct: false,
           approach: "change_many",
           next: "e4",
@@ -288,15 +293,15 @@ export const rentCrisis: Scenario = {
       ],
       consequences: {
         everyone:
-          "Slide the model to $1,500. The homes-offered bar drops to 50,000 while the families-looking bar rises to 90,000. The cap decided the price. It did not decide who gets a key.",
+          "Slide the model to $1,500. The offered homes bar drops to 50,000. The cap chose a price, but not who gets a key.",
         nothing:
-          "Some will absorb it. Others sell, or switch to holiday lets, or leave the flat empty rather than lock in a low rent for years. In the model that is the offered bar falling — and it falls whether or not anyone is being greedy.",
+          "Some owners absorb it. Others sell, switch uses, or leave a flat empty. The offered homes bar falls either way.",
         build:
-          "Watch the model again: a lower price makes renting out *less* attractive, not more. Nobody builds a block of flats to charge less for it.",
+          "Watch the model again. A lower allowed rent makes new building less tempting, not more. Nobody builds flats to charge less.",
       },
       hints: [
-        "Move the cap and watch the second bar, not the first.",
-        "Ask what a landlord does when the rent allowed is less than the trouble is worth.",
+        "Move the cap and watch the homes bar, not just the rent number.",
+        "Ask what an owner does when the allowed rent feels too low.",
         "The cap sets the price. It does not build anything.",
       ],
     },
@@ -311,10 +316,15 @@ export const rentCrisis: Scenario = {
         caption: "Five things follow the cap. In this order.",
         status: "day 12 · committee room",
       },
+      trivia: {
+        emoji: "⏳",
+        title: "Stockholm's long queue",
+        text: "In Stockholm people join a public list for cheap rent-controlled flats. The wait can stretch past ten years downtown.",
+      },
       type: "reorder",
       text: [
-        "You take it to committee. Brandt is not persuaded and he is not stupid.",
-        "“Fine,” he says. “Walk me through it. If the cap is so terrible, tell me what happens after I sign it — in order.”",
+        "You bring the model to the small committee room. Brandt points at the 50,000 homes bar.",
+        "“Do not wave at a chart,” he says. “Tell me what happens after I sign, step by step.”",
       ],
       prompt: "What follows a cap set below the going rent?",
       instruction: "Put the five steps in the order they happen.",
@@ -322,39 +332,39 @@ export const rentCrisis: Scenario = {
         {
           id: "cap",
           label: "Rent is capped below what it was",
-          detail: "$1,500, when the going rate was $2,500.",
+          detail: "$1,500, when the average rent was $2,500.",
         },
         {
           id: "want",
-          label: "Renting suddenly looks cheap, so more families want in",
-          detail: "Including people who were sharing, or living with parents.",
+          label: "The low price brings more families into the hunt",
+          detail: "Some people who were sharing now try for their own place.",
         },
         {
           id: "withdraw",
-          label: "Some owners stop renting out at that price",
-          detail: "They sell, switch to holiday lets, or just leave it empty.",
+          label: "Some owners stop offering homes at that price",
+          detail: "They sell, switch uses, or leave a home empty.",
         },
         {
           id: "queue",
-          label: "Far more families are chasing far fewer homes",
+          label: "Far more families chase far fewer homes",
         },
         {
           id: "ration",
-          label: "Homes go to whoever is quickest, luckiest or best connected",
-          detail: "The queue decides now, not the price.",
+          label: "Keys go to whoever is fastest or luckiest",
+          detail: "The line decides now, not the price.",
         },
       ],
       wrong:
-        "Brandt leans back, pleased. “That's not what happens and you know it. Something has to change on the landlords' side before your queue can exist.”",
+        "Brandt shakes his head. “The queue cannot grow until people react to the cap. Start with the rule, then follow the reactions.”",
       right:
-        "The room goes quiet. Brandt taps the table twice. “All right. But my people are still in that queue, mayor. What's your bill?”",
+        "The room goes quiet. Brandt taps the table. “All right. My people are still in that line. What is your bill?”",
       concept:
-        "A binding price cap converts a price problem into a queueing problem.",
-      probe: "Who ends up worse off in that queue than they were before?",
+        "A low price rule can turn a price problem into a line problem.",
+      probe: "Who ends up worse off in that line than before?",
       hints: [
-        "Start with the cap itself — everything else is a reaction to it.",
-        "Two things happen at once after the cap: renters react, and owners react.",
-        "Cap → more want in → some owners leave → queue → whoever's connected wins.",
+        "Start with the cap itself. Everything else reacts to it.",
+        "Two groups react after the cap: families and owners.",
+        "Cap → more want in → some homes leave → longer line → luck chooses.",
       ],
       next: "e6",
     },
@@ -371,11 +381,11 @@ export const rentCrisis: Scenario = {
       },
       type: "narrative",
       text: [
-        "Brandt's question is still sitting in the room. You do not have a bill yet — you have a whiteboard, and one line on it: 90,000 families, 70,000 homes.",
-        "Every argument in the building has been about the $2,500. Not one has been about the 20,000.",
-        "“The rent is a number the shortage produces,” you tell the room. “Argue with the number all you like. It'll keep producing it.”",
-        "Karl Mercer, who builds about a third of what gets built in Halden, has been sitting at the back all morning. He finally speaks.",
-        "“I have land for eleven thousand homes,” he says. “I've been waiting four years for permits on the first three thousand.”",
+        "Brandt’s question stays on the table after the meeting. You write one line under it.",
+        "90,000 families. 70,000 rental homes. 20,000 missing homes.",
+        "Every argument has been about $2,500. None of those arguments added a door 🚪.",
+        "A builder at the back raises his hand. He says he has land for 11,000 homes.",
+        "“The first 3,000 have waited four years for permits,” he says. Now you know the other lever.",
       ],
       next: "e7",
     },
@@ -393,61 +403,66 @@ export const rentCrisis: Scenario = {
         caption: "Same rent as the cap — with tens of thousands more homes.",
         status: "day 21",
       },
+      trivia: {
+        emoji: "🌉",
+        title: "A San Francisco study",
+        text: "A study of San Francisco found that after the city widened its rent rules in 1994, some owners rented out fewer flats.",
+      },
       primer: {
         term: "Vacancy",
         plain:
-          "how many homes are standing empty, waiting for a tenant. When almost nothing is empty, tenants compete for homes and prices rise. When a few percent sit empty, homes compete for tenants and prices fall.",
-        like: "the last seat on a packed train versus a half-empty carriage.",
+          "Vacancy means empty homes waiting for renters. When some homes sit empty, owners compete for families and prices fall.",
+        like: "the last seat on a full bus compared with many open seats.",
       },
       type: "choice",
       text: [
-        "Nora rebuilds the model with a second lever: instead of capping the price, unblock the building.",
-        "Drag it. Nobody in this version is ordered to charge anything.",
-        "\u201cWatch the vacancy line,\u201d Nora says. \u201cThat is how many homes are standing empty. Rent does whatever that number tells it to.\u201d",
+        "The permit problem becomes Nora’s next model. This time the lever adds homes instead of capping rent.",
+        "Drag it and watch the vacancy line. That line shows homes with nobody in them.",
+        "When the line rises, rent moves without a price rule 📉.",
       ],
       prompt: "Why does rent fall in this model without a single rule?",
       concept:
-        "Rent falls on its own when there are more homes than families competing for them.",
-      probe: "Why is this so much less satisfying to announce than a cap?",
+        "Rent falls on its own when owners must compete for renters.",
+      probe: "Why is this harder to announce than a cap?",
       options: [
         {
           id: "compete",
-          label: "Owners have to compete for tenants instead of the other way round",
-          detail: "When there are spare homes, the empty one has to lower its price.",
+          label: "Owners have to compete for renters",
+          detail: "When homes sit empty, owners lower prices to fill them.",
           correct: true,
           outcome:
-            "“That is the version worth having,” Priya says. “Not a rule that holds the price down, but enough homes that nobody can name their price.” Boyd writes it on the whiteboard and underlines it twice.",
+            "Nora writes the lesson under the model: lower rent by making homes compete for families. The next step is choosing how many homes to unblock.",
           approach: "seek_pattern",
           next: "e8",
         },
         {
           id: "cheapbuild",
-          label: "New homes are cheaper to build, so they're cheaper to rent",
-          detail: "Modern construction costs less.",
+          label: "New homes are cheaper to build",
+          detail: "Modern building must cost less.",
           correct: false,
           approach: "commit_to_hypothesis",
           next: "e7",
         },
         {
           id: "generous",
-          label: "Builders pass the savings on to be fair",
-          detail: "Karl seems reasonable enough.",
+          label: "Builders pass savings on to be fair",
+          detail: "The builder sounded reasonable enough.",
           correct: false,
           approach: "follow_authority",
           next: "e7",
         },
         {
           id: "quality",
-          label: "The new homes are worse, so they drag the average down",
-          detail: "Cheap flats in the average make the number look lower.",
+          label: "The new homes are worse",
+          detail: "Cheap flats drag the average down.",
           correct: false,
           approach: "seek_pattern",
           next: "e7",
         },
         {
           id: "nobody",
-          label: "It doesn't really — the model is just optimistic",
-          detail: "New flats are always the expensive ones.",
+          label: "It does not really fall",
+          detail: "The model is just too hopeful.",
           correct: false,
           approach: "abandon_hypothesis",
           next: "e7",
@@ -455,18 +470,18 @@ export const rentCrisis: Scenario = {
       ],
       consequences: {
         quality:
-          "Nora filters the model to existing homes only \u2014 same flats, same streets, nothing new in the average. Their rents fall too. Whatever is happening, it is happening to homes that were already there.",
+          "Nora hides the new homes and checks old flats only. Their rents fall too. The cause is not cheap new flats.",
         cheapbuild:
-          "New homes in Halden cost more to build than old ones, not less. The rent still falls in the model — which means the cause has to be something other than the building cost.",
+          "New homes cost more to build than old homes. Rent still falls in the model, so building cost is not the cause.",
         generous:
-          "Karl laughs out loud at that. “I charge what I can get. So does everyone. The model isn't about my character — it's about how many empty flats I'm competing with.”",
+          "The builder laughs. “I charge what I can get. The model is about empty homes, not my kindness.”",
         nobody:
-          "New flats are usually the expensive ones, and rent still falls: the family who moves into the shiny new one leaves an older, cheaper one behind. Every new home frees a home somewhere down the chain.",
+          "New flats can be costly, and rent still falls. A family moving into one leaves another home behind.",
       },
       hints: [
-        "Nobody in this model is being told what to charge. So who changed their mind, and why?",
-        "Think about two identical flats and one family, versus two families and one flat.",
-        "Spare homes mean the landlord with an empty one has to do something about it.",
+        "Nobody in this model is told what to charge. So who changes behavior?",
+        "Think about two families and one flat, then one family and two flats.",
+        "A landlord with an empty flat has a reason to lower the price.",
       ],
     },
     {
@@ -480,21 +495,26 @@ export const rentCrisis: Scenario = {
         caption: "Enough homes to matter. Not so many that the vote dies.",
         status: "day 46 · council chamber",
       },
+      trivia: {
+        emoji: "🗼",
+        title: "Tokyo builds anywhere",
+        text: "Tokyo lets builders add homes almost anywhere in the city. Its rents have stayed steady even as many more people moved in.",
+      },
       type: "slider",
       text: [
-        "The rezoning bill lets Karl and everyone like him build. You choose how far it goes.",
-        "Families here can carry about $1,800. Get the settled rent under that and this was worth doing.",
-        "Nora has counted the votes twice. Above 44,000 new homes, three suburban councillors walk and the bill dies on the floor.",
+        "Because competition needs empty homes, Nora turns the model into a bill.",
+        "The rezoning bill changes what can be built and how fast permits move.",
+        "Families can carry about $1,800. Above 44,000 new homes, three council members leave and the bill fails.",
       ],
       prompt: "How many new homes do you unblock?",
       primer: {
         term: "Rezoning",
         plain:
-          "Changing the rules about what may be built where — how tall, how many, and how long permission takes.",
-        like: "repainting the lines in a car park so more cars fit into exactly the same ground.",
+          "Rezoning means changing building rules for a place. It can allow more homes on the same land.",
+        like: "redrawing a car park so more cars fit in the same ground.",
       },
       concept:
-        "The fix has to be big enough to move the price and small enough to actually pass.",
+        "The fix has to be big enough to lower rent and small enough to pass.",
       probe: "Why not push for the maximum?",
       slider: {
         label: "Homes unblocked",
@@ -509,8 +529,8 @@ export const rentCrisis: Scenario = {
         unit: "k",
         expr: "market_rent",
         params: {
-          demandIntercept: 120,
-          demandSlope: 20,
+          demandIntercept: 780 / 7,
+          demandSlope: 60 / 7,
           supplyIntercept: 20,
           supplySlope: 20,
         },
@@ -519,29 +539,29 @@ export const rentCrisis: Scenario = {
       driver: { label: "What families can carry", value: 1.8, unit: "k" },
       risk: { mode: "ceiling", safeGap: 0.9 },
       meter: "market",
-      target: { min: 30, max: 44 },
+      target: { min: 42, max: 44 },
       bands: [
         {
-          max: 12,
-          text: "A gesture. Rent drifts down by a couple of hundred dollars and the waiting list does not notice. Brandt calls it “a press release with planning permission”.",
+          max: 20,
+          text: "A small gesture passes. Rent stays far above $2,000, and the 20,000-family list barely moves.",
         },
         {
-          max: 28,
-          text: "Real homes, real cranes — and rent settles just above what people here can carry. Close enough to hurt, not close enough to help.",
+          max: 40,
+          text: "Real cranes appear, but rent only just reaches $1,800. That is still too tight for many families.",
         },
         {
           max: 44,
-          text: "It passes, 19 to 14. Rent is projected to settle inside what Halden families can actually pay, and there are more homes, not fewer. Karl is already on the phone.",
+          text: "The bill passes 19 to 14. Rent is projected below $1,800, and the first permits go out before dawn.",
         },
         {
           max: 60,
-          text: "Three suburban councillors walk out before the vote and the bill dies on the floor. You aimed for everything and unblocked nothing.",
+          text: "Three council members walk out before the vote. You aimed for every home and unblocked none.",
         },
       ],
       hints: [
         "Drag it and watch the settled rent against the $1,800 line.",
-        "You need the rent under $1,800, and no more than 44,000 homes.",
-        "Somewhere between 30,000 and 44,000 does both.",
+        "You need rent under $1,800, with no more than 44,000 homes.",
+        "Somewhere between 42,000 and 44,000 does both.",
       ],
       next: "e9",
     },
@@ -558,8 +578,9 @@ export const rentCrisis: Scenario = {
       },
       type: "reflect",
       text: [
-        "The bill passes at 11:40 p.m. Nora buys two terrible sandwiches from the machine in the corridor.",
-        "A local reporter catches you on the way out. “Mayor — in one sentence, for someone paying $2,500 tomorrow morning. Why is this better than just capping it?”",
+        "The first permits go out before dawn 🌅. By midnight, the vote story is everywhere.",
+        "A reporter catches you in the hall. “Mayor, people still owe $2,500 tomorrow.”",
+        "“Why is this better than just capping it?”",
       ],
       prompt: "Why is building better than capping?",
       placeholder: "One or two plain sentences.",
@@ -578,13 +599,18 @@ export const rentCrisis: Scenario = {
         caption: "Elena is still in the car park.",
         status: "month 6 · rent $2,540",
       },
+      trivia: {
+        emoji: "🏗️",
+        title: "Cranes take years",
+        text: "A big block of new flats usually takes two or three years to finish. Paperwork can add even longer at the start.",
+      },
       type: "narrative",
       text: [
-        "Six months later there are eleven cranes on the skyline and not one finished flat.",
-        "Rent is $2,540. It has gone up.",
-        "Elena Vogt is still in the staff car park, and now a local paper has photographed her there under the headline “THE MAYOR'S PLAN”.",
-        "Brandt is enjoying himself enormously.",
-        "Then the state government transfers $400 million of housing money into the city account, and everyone in the building has an idea about it.",
+        "Six months after that hallway answer, the cranes are easy to see 🏗️.",
+        "Not one finished flat is ready. Rent is $2,540, so the pain is worse today.",
+        "Elena is still sleeping in the hospital car park. A paper puts her photo under THE MAYOR’S PLAN.",
+        "Brandt points at the headline during the next meeting. Then Nora slides in with new news.",
+        "The state has sent $400 million for housing 💰. Everyone wants to spend it first.",
       ],
       next: "e11",
     },
@@ -602,15 +628,16 @@ export const rentCrisis: Scenario = {
       },
       type: "choice",
       text: [
-        "Four hundred million dollars. Brandt wants it as vouchers, straight into renters' hands, this month.",
-        "Slide the model before you decide. Watch what happens to the rent everybody pays.",
+        "The $400 million lands while the cranes are still only promises.",
+        "Brandt wants cash help sent to renters this month. Slide the model before you decide.",
+        "Watch the rent everyone pays, not just the check people receive.",
       ],
       prompt: "Where does the money go?",
       primer: {
-        term: "Vouchers",
+        term: "Cash help",
         plain:
-          "Public money handed straight to renters to help them pay. It lifts what every family can afford, without adding one home to the city.",
-        like: "handing everyone at an auction an extra $400. The painting still goes to one person — just for more.",
+          "Cash help is public money given to renters for rent. It adds spending power, but no homes.",
+        like: "giving bidders more money at an auction. The painting still goes to one bidder.",
       },
       concept:
         "Money given to renters raises what renters can bid; it does not add a home.",
@@ -618,17 +645,17 @@ export const rentCrisis: Scenario = {
       options: [
         {
           id: "mostly",
-          label: "Most of it into building, a small hardship fund for the worst cases",
-          detail: "Fix the shortage; carry the people who can't wait for it.",
+          label: "Put most money into homes, with quick help for the worst cases",
+          detail: "Fix the shortage, and carry people who cannot wait.",
           correct: true,
           outcome:
-            "The split goes into the paper that evening: the bulk into supply, a named fund for the households who cannot wait three years for it. It is not the headline anyone wanted, and it is the one you can defend in public.",
+            "The split is printed that night: most money speeds homes, and a small fund gets people like Elena indoors. Next, Nora needs the order explained in public.",
           approach: "isolate_variable",
           next: "e12",
         },
         {
-          id: "vouchers",
-          label: "$500 a month to every renter in Halden",
+          id: "cash",
+          label: "$400 a month to every housed renter for one year",
           detail: "Instant, visible, and popular.",
           correct: false,
           approach: "act_first",
@@ -645,21 +672,21 @@ export const rentCrisis: Scenario = {
         {
           id: "hold",
           label: "Hold the money until the new blocks are finished",
-          detail: "Don't distort anything while the plan is working.",
+          detail: "Do not change anything while the plan works.",
           correct: false,
           approach: "commit_to_hypothesis",
           next: "e11",
         },
       ],
       consequences: {
-        vouchers:
-          "Slide the model to all-vouchers. Rent goes to $3,500. Every renter can now bid $500 more for the same unchanged pile of homes — so they do, and the landlords collect most of your $400 million.",
-        buy: "You buy 4,000 flats from people who already own them. Halden still has exactly the same number of homes; 4,000 families are simply now your tenants instead of somebody else's, and the 20,000 gap has not moved a millimetre.",
-        hold: "The plan works in three years. Elena is sleeping in a car tonight. “Correct in the long run” is not a housing policy if people cannot survive the short run.",
+        cash:
+          "Slide the model to all cash help. Rent rises by almost the same amount. Renters can bid more for the same homes, so owners charge more.",
+        buy: "The city buys 4,000 flats from current owners. Halden still has 70,000 rental homes, so the 20,000-home gap barely changes.",
+        hold: "The plan may work in three years. Elena is in a car tonight. A long-run answer still needs a short-run bridge.",
       },
       hints: [
         "Try the two ends of the slider and read the rent, not the headline.",
-        "Ask, for each option: does Halden have more homes tomorrow than it does today?",
+        "Ask whether each option gives Halden more homes tomorrow.",
         "Money for building adds homes. Money for renters adds bidders.",
       ],
     },
@@ -676,8 +703,8 @@ export const rentCrisis: Scenario = {
       },
       type: "reorder",
       text: [
-        "Nora wants a slide for the press. “They keep asking when rent goes down. Show them the actual sequence.”",
-        "Five boxes. You have to say which comes first.",
+        "Because the split is hard to defend, Nora makes one press slide.",
+        "“People keep asking when rent falls,” she says. “Show the real order, not the wish.”",
       ],
       prompt: "How does unblocking building actually reach a renter?",
       instruction: "Put the five steps in the order they happen.",
@@ -685,7 +712,7 @@ export const rentCrisis: Scenario = {
         {
           id: "permits",
           label: "Permits are approved",
-          detail: "Paper. Nothing visible changes.",
+          detail: "Paper changes first. Most families see nothing yet.",
         },
         {
           id: "build",
@@ -694,30 +721,30 @@ export const rentCrisis: Scenario = {
         },
         {
           id: "empty",
-          label: "There are more homes than families looking",
-          detail: "For the first time in a decade, some flats sit empty.",
+          label: "Some homes sit empty",
+          detail: "For the first time in years, renters have choices.",
         },
         {
           id: "compete",
-          label: "Owners start competing for tenants",
-          detail: "An empty flat earns nothing, so somebody blinks on price.",
+          label: "Owners start competing for renters",
+          detail: "An empty flat earns nothing, so someone lowers the price.",
         },
         {
           id: "fall",
-          label: "Rents come down and the waiting list shrinks",
+          label: "Rents come down and the list shrinks",
         },
       ],
       wrong:
-        "Nora frowns at the board. “That's the order we wish it went in. Nothing makes a landlord lower rent until the flat next door is empty.”",
+        "Nora points to the middle of the board. “Rent cannot fall first. Owners lower prices only after empty homes appear.”",
       right:
-        "“Good,” she says. “And that's also the honest bad news: three of those five steps happen before a single renter feels anything.”",
+        "“Good,” Nora says. “Now the honest bad news is clear. Three steps happen before most renters feel relief.”",
       concept:
-        "Supply fixes work through competition, which is why they are slow and why they last.",
-      probe: "Which step is where the pain of waiting actually sits?",
+        "Supply fixes work through competition, which is why they are slow and lasting.",
+      probe: "Which step is where the painful wait sits?",
       hints: [
-        "Nothing in this chain is a rule. Every step has to be caused by the one before it.",
-        "Ask what has to be true before a landlord chooses to charge less.",
-        "Permits → building → spare homes → competition → rent falls.",
+        "Nothing in this chain is magic. Each step causes the next.",
+        "Ask what must happen before an owner lowers rent.",
+        "Permits → building → empty homes → competition → rent falls.",
       ],
       next: "e13",
     },
@@ -728,37 +755,37 @@ export const rentCrisis: Scenario = {
       beat: "The offer",
       visual: {
         kind: "council",
-        title: "Brandt's deal",
+        title: "Brandt’s deal",
         caption: "He has the votes for phase two. He wants something for them.",
         status: "month 8 · phase two vote",
       },
       type: "choice",
       text: [
-        "Phase two of the rezoning needs nineteen votes. Brandt has seven of them in his pocket and a proposal.",
-        "“Pass my citywide cap alongside it and you get every vote I have. Refuse, and phase two dies and you can explain that to Elena.”",
-        "Nora says nothing, which is how she says a lot.",
+        "After Nora’s slide, the waiting part is no longer hidden. Brandt uses that pain in the next vote.",
+        "Phase two needs nineteen votes. Brandt has seven, and he offers a trade 🤝.",
+        "“Pass my citywide cap with it,” he says. “Refuse, and explain the delay to Elena.”",
       ],
       prompt: "What do you take into the chamber?",
       concept:
-        "Protecting people from sudden loss is not the same as fixing a price for everyone.",
+        "Protecting people from sudden loss is not the same as fixing one price for everyone.",
       options: [
         {
           id: "protect",
           label: "Counter-offer: protect people already in their homes",
-          detail: "Limit how far rent can jump on an existing tenancy — no citywide price.",
+          detail: "Limit sudden rent jumps on current leases, with no citywide cap.",
           correct: true,
           outcome:
-            "Boyd reads your counter-offer twice. “You are giving them the thing they actually care about,” he says, “and keeping the thing the city needs.” The developers’ lawyer asks for the room.",
+            "Brandt reads the offer twice. It guards housed families without killing new homes. The chamber now has a deal it can pass.",
           approach: "seek_pattern",
           next: "e14",
         },
         {
           id: "refuse",
           label: "Refuse the deal and take phase two to a public vote",
-          detail: "Slower, riskier, and nobody has to pretend the cap works.",
+          detail: "Slower and louder, but no one has to pretend the cap works.",
           correct: true,
           outcome:
-            "You put phase two to the public instead. It is slower, louder and riskier — and it means the plan that survives is one the city chose with its eyes open.",
+            "You send phase two to the public instead. It is slow and loud. The city chooses the plan with its eyes open.",
           approach: "commit_to_hypothesis",
           next: "e14",
         },
@@ -781,13 +808,13 @@ export const rentCrisis: Scenario = {
       ],
       consequences: {
         accept:
-          "The cap lands the same month the first blocks top out. Owners who were about to list start hesitating, and half of Karl's phase-two investors quietly walk. You traded the fix for the thing the fix was meant to replace.",
-        swap: "Renters get a number on a page and Halden gets no new homes at all. In eighteen months the queue is longer, the list is longer, and the only thing you have changed is who gets to the front.",
+          "The cap lands as the first blocks top out. Owners hesitate, and new money backs away. You traded the fix for the thing it replaced.",
+        swap: "Renters get a number on a page, but Halden gets no new homes. The line grows, and luck chooses the winners.",
       },
       hints: [
-        "Is there a version of “protect renters” that doesn't set one price for the whole city?",
-        "Brandt's fear is families thrown out by a sudden $800 rise. That is a narrower problem than the price of everything.",
-        "You can guard people against sudden loss without telling the whole market what to charge.",
+        "Can you protect renters without setting one price for the whole city?",
+        "Brandt fears sudden jumps for housed families. That is narrower than every rent.",
+        "You can guard people from shocks while still adding homes.",
       ],
     },
     {
@@ -798,16 +825,17 @@ export const rentCrisis: Scenario = {
       visual: {
         kind: "city-dawn",
         title: "The tower on Mill Road",
-        caption: "Rent $1,780. The waiting list is 9,000 and falling.",
+        caption: "Rent $1,780. The waiting list is 2,000 and falling.",
         status: "year 3",
       },
       type: "ending",
       text: [
-        "It takes three years, which is roughly three years longer than anyone wanted.",
-        "Rent settles at $1,780. The waiting list is down from 40,000 to 9,000. Twenty-six thousand homes have been finished and eleven thousand more are going up.",
-        "Elena Vogt moved into a flat on Mill Road in the second year. She is still cross about the first one.",
-        "Brandt, who fought you for two years, now describes the rezoning as “what we did” in interviews. Nora says you should let him.",
-        "The thing nobody puts on a poster: the rent came down because the flat next door was empty. That was the whole plan.",
+        "Three years later, the deal has become streets, doors, and keys 🔑.",
+        "Rent settles at $1,780. The list is down from 20,000 families to 2,000.",
+        "Twenty-six thousand homes are finished. Eleven thousand more are going up.",
+        "Elena moved indoors in year two. She still says the first year was too long.",
+        "Brandt now calls the building plan “what we did.” Nora tells you to let him.",
+        "The plain lesson is not on any poster. Rent fell because the next flat was empty.",
       ],
       outcome: "success",
     },

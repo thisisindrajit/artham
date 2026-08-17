@@ -19,8 +19,8 @@ const CLAIMS = [
   },
   {
     id: "offering",
-    claim: "“The horse is an offering to Athena. Untouched.”",
-    ground: "Fresh pitch at the seams. Somebody sealed it two days ago.",
+    claim: "“The horse is a gift for the goddess. Untouched.”",
+    ground: "Fresh tar at the seams. Somebody sealed it two days ago.",
     agrees: false,
   },
   {
@@ -111,9 +111,9 @@ export function StoryCheck() {
 /* ------------------------------------------------------------------ */
 
 /** Oak, roughly. A solid horse of this size would be brutally heavy. */
-const SOLID_TONNES = 14.5;
+const SOLID_TONNES = 14;
 /** What the ruts in the sand actually say it weighs. */
-const RUT_TONNES = 4.2;
+const RUT_TONNES = 6;
 
 export function HorseHollow() {
   const [fill, setFill] = useState(100);
@@ -133,9 +133,10 @@ export function HorseHollow() {
         matchesRuts ? (
           <>
             At <strong>{fill}% solid</strong> the weight finally agrees with the
-            tracks. Which means roughly{" "}
-            <strong className="italic">two thirds of it is empty air</strong> —
-            or something lighter than oak, and warmer.
+            tracks. An empty shell would weigh about three tonnes. This one
+            weighs six — so{" "}
+            <strong className="italic">three tonnes of it is not wood</strong>.
+            That is about forty men with their weapons.
           </>
         ) : (
           <>
@@ -183,7 +184,7 @@ export function HorseHollow() {
 }
 
 /* ------------------------------------------------------------------ */
-/* siege-clock — the arithmetic that makes the trap worth trying        */
+/* siege-clock — the sums that make the trap worth trying               */
 /* ------------------------------------------------------------------ */
 
 const STORE_TONNES = 2_000;
@@ -232,7 +233,7 @@ export function SiegeClock() {
         ) : weak ? (
           <>
             The grain lasts, but on this ration a man cannot carry armour up to
-            the rampart. Troy survives the arithmetic and loses the wall.
+            the wall. Troy survives the sums and loses the wall.
           </>
         ) : (
           <>

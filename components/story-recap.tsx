@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PlayState } from "@/lib/engine";
 import type { Scenario } from "@/lib/story";
+import { storyEmoji } from "@/lib/story/emoji";
 import { cardSoft } from "@/lib/ui";
+
+/** How many recent beats a phone shows before folding the rest away. */
+const RECENT_ON_SMALL = 3;
+
 
 /**
  * "The story so far."
@@ -20,13 +25,20 @@ import { cardSoft } from "@/lib/ui";
 export function StoryRecap({
   scenario,
   state,
+  activeId,
+  onSelect,
   className = "",
 }: {
   scenario: Scenario;
   state: PlayState;
+  /** The beat currently on screen — the live one, or the one being re-read. */
+  activeId?: string;
+  /** Reopen a beat the learner has already played. */
+  onSelect?: (sceneId: string) => void;
   className?: string;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
+  const [hasOlder, setHasOlder] = useState(false);
   const current = scenario.scenes.findIndex((scene) => scene.id === state.sceneId);
   const progress = Math.max(
     0,
@@ -53,6 +65,7 @@ export function StoryRecap({
         id: sceneId,
         beat: scene.beat,
         act: scene.act,
+        emoji: storyEmoji(scene.visual.kind),
         context: scene.visual.caption,
         decision,
         experiment,
@@ -62,11 +75,19 @@ export function StoryRecap({
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
+  const olderOnSmall = Math.max(0, entries.length - RECENT_ON_SMALL);
+
   useEffect(() => {
-    listRef.current?.lastElementChild?.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth",
-    });
+    const list = listRef.current;
+    if (!list) return;
+    // Only the tall desktop panel scrolls. Assigning scrollTop directly (rather
+    // than scrollIntoView) keeps a new beat from yanking the whole page on
+    // phones, where the panel sits above the story.
+    const overflowing = list.scrollHeight > list.clientHeight + 1;
+    setHasOlder(overflowing);
+    if (overflowing) {
+      list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+    }
   }, [entries.length]);
 
   if (state.phase !== "scene") {
@@ -91,6 +112,9 @@ export function StoryRecap({
             The situation
           </p>
           <p className="mt-2 text-[17px] leading-[1.45] font-semibold text-ink">
+            <span aria-hidden className="mr-2">
+              {storyEmoji(scenario.intro.visual.kind)}
+            </span>
             {scenario.intro.visual.caption}
           </p>
           <p className="mt-2 text-[13px] leading-[1.45] text-ink/60">
@@ -155,61 +179,103 @@ export function StoryRecap({
 
       <ol
         ref={listRef}
-        className="mt-4 max-h-64 space-y-4 overflow-y-auto pr-1 lg:max-h-none lg:min-h-0 lg:flex-1"
+        className={`mt-4 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto ${
+          hasOlder
+            ? "[mask-image:linear-gradient(to_bottom,transparent_0,#000_22px)]"
+            : ""
+        }`}
       >
+        {olderOnSmall > 0 && (
+          <li className="mb-4 pl-[22px] text-[12px] font-semibold text-ink/45 italic lg:hidden">
+            {olderOnSmall} earlier beat{olderOnSmall > 1 ? "s" : ""} before this
+          </li>
+        )}
         {entries.map((entry, i) => {
-          const here = i === entries.length - 1;
+          const last = i === entries.length - 1;
+          const here = entry.id === (activeId ?? state.sceneId);
+          // Phones get the recent stretch only. Clipping a scroll box mid-card
+          // is what made this panel look broken, so small screens simply show
+          // fewer beats instead of half of one.
+          const foldedOnSmall = i < entries.length - RECENT_ON_SMALL;
+          const body = (
+            <>
+              <p
+                className={
+                  here
+                    ? "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-extrabold text-ink italic"
+                    : "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-semibold text-ink/70"
+                }
+              >
+                <span aria-hidden className="shrink-0 not-italic">
+                  {entry.emoji}
+                </span>
+                <span>{entry.beat}</span>
+              </p>
+              <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">
+                {entry.decision?.outcome ??
+                  entry.experiment?.outcome ??
+                  entry.context}
+              </p>
+              {entry.decision && (
+                <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                  You chose: {entry.decision.choice}
+                </p>
+              )}
+              {entry.experiment && (
+                <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                  You tested: {entry.experiment.value}
+                </p>
+              )}
+              {entry.reasoning && (
+                <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                  You said: {entry.reasoning.answer}
+                </p>
+              )}
+              {entry.corrected && (
+                <p className="mt-1.5 text-[11.5px] font-semibold tracking-wide text-sage uppercase">
+                  You revised an earlier try
+                </p>
+              )}
+            </>
+          );
           return (
-            <li key={entry.id} className="relative flex gap-3">
-              <span className="flex flex-col items-center">
+            <li
+              key={entry.id}
+              className={`relative gap-3 pb-5 last:pb-0 ${
+                foldedOnSmall ? "hidden lg:flex" : "flex"
+              }`}
+            >
+              {/* The rail is positioned against the <li> padding box, not the
+                  marker column, so it can cross the gap and land exactly on
+                  the next dot instead of stopping short of it. */}
+              {!last && (
+                <span
+                  aria-hidden
+                  className="absolute top-[15px] -bottom-[5px] left-[5px] w-px -translate-x-1/2 bg-ink/15"
+                />
+              )}
+              <span className="flex w-2.5 shrink-0 flex-col">
                 <span
                   className={
                     here
-                      ? "mt-[7px] size-2.5 shrink-0 rounded-full bg-accent ring-4 ring-accent/20"
-                      : "mt-[7px] size-2.5 shrink-0 rounded-full border-2 border-ink/25 bg-white"
+                      ? "mt-[5px] size-2.5 rounded-full bg-accent ring-4 ring-accent/20"
+                      : "mt-[5px] size-2.5 rounded-full border-2 border-ink/25 bg-white"
                   }
                 />
-                {i < entries.length - 1 && (
-                  <span className="mt-1 w-px flex-1 bg-ink/15" />
-                )}
               </span>
 
-              <div className="min-w-0 pb-0.5">
-                <p
-                  className={
-                    here
-                      ? "text-[14.5px] leading-[1.4] font-extrabold text-ink italic"
-                      : "text-[14.5px] leading-[1.4] font-semibold text-ink/70"
-                  }
+              {onSelect ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect(entry.id)}
+                  title={last ? "You are here" : `Re-read: ${entry.beat}`}
+                  className="-my-1 min-w-0 flex-1 cursor-pointer rounded-xl px-2 py-1 text-left transition hover:bg-accent/[0.06]"
                 >
-                  {entry.beat}
-                </p>
-                <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">
-                  {entry.decision?.outcome ??
-                    entry.experiment?.outcome ??
-                    entry.context}
-                </p>
-                {entry.decision && (
-                  <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                    You chose: {entry.decision.choice}
-                  </p>
-                )}
-                {entry.experiment && (
-                  <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                    You tested: {entry.experiment.value}
-                  </p>
-                )}
-                {entry.reasoning && (
-                  <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                    You said: {entry.reasoning.answer}
-                  </p>
-                )}
-                {entry.corrected && (
-                  <p className="mt-1.5 text-[11.5px] font-semibold tracking-wide text-sage uppercase">
-                    You revised an earlier try
-                  </p>
-                )}
-              </div>
+                  {body}
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1">{body}</div>
+              )}
             </li>
           );
         })}

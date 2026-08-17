@@ -329,6 +329,286 @@ check("every scenario names what it taught", () => {
   }
 });
 
+/* ------------------------------------------------------------------ */
+/**
+ * Readability. A story nobody can follow is not a hard story, it is a broken
+ * one — and the failure is silent, because a confused learner blames himself
+ * and quits. These three gates make "a child could follow this" a thing the
+ * build can check instead of a thing we hope for.
+ */
+
+/** Every learner-facing string in a scenario, tagged with where it lives. */
+function proseOf(story: Scenario): { where: string; text: string }[] {
+  const out: { where: string; text: string }[] = [];
+  const add = (where: string, ...text: (string | undefined)[]) => {
+    for (const t of text) if (t && t.trim()) out.push({ where, text: t });
+  };
+
+  add("tagline", story.tagline, story.learningGoal, story.partnerGreeting);
+  add("intro", story.intro.role, ...story.intro.text, story.intro.cta);
+  add("preSession", story.preSession.prompt, ...story.preSession.options.map((o) => o.label));
+  const t = story.takeaway;
+  add("takeaway", t.inOneLine, t.rule, ...t.elsewhere, ...t.youUsedIt);
+
+  for (const visual of [story.intro.visual, ...story.scenes.map((s) => s.visual)]) {
+    add("visual", visual.title, visual.caption, visual.status);
+  }
+
+  for (const scene of story.scenes) {
+    const at = `${scene.id}`;
+    add(at, scene.beat);
+    for (const primer of primersOf(scene)) add(`${at}/primer`, primer.plain, primer.like);
+    if (scene.type !== "ending") add(at, ...(scene.text ?? []));
+    else add(at, ...scene.text);
+    if (scene.type === "choice") {
+      add(at, scene.prompt, scene.probe, ...scene.hints);
+      for (const o of scene.options) add(`${at}/${o.id}`, o.label, o.detail, o.outcome);
+      add(`${at}/consequence`, ...Object.values(scene.consequences));
+    }
+    if (scene.type === "slider") {
+      add(at, scene.prompt, scene.probe, ...scene.hints, scene.slider.label, scene.readout.label, scene.driver.label);
+      add(`${at}/band`, ...scene.bands.map((b) => b.text));
+    }
+    if (scene.type === "reorder") {
+      add(at, scene.prompt, scene.probe, scene.instruction, scene.wrong, scene.right, ...scene.hints);
+      for (const s of scene.steps) add(`${at}/${s.id}`, s.label, s.detail);
+    }
+    if (scene.type === "reflect") add(at, scene.prompt, scene.placeholder);
+    if (scene.trivia) add(`${at}/trivia`, scene.trivia.title, scene.trivia.text);
+  }
+  return out;
+}
+
+const wordCount = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+
+/** Split on sentence enders, but not on the dot inside "12.5" or "Mr.". */
+const sentencesOf = (text: string) =>
+  text
+    .split(/(?<=[.!?…])(?=\s)|(?<=[.!?…])$/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/**
+ * 24 words is roughly two breaths. Past that a sentence starts stacking clauses,
+ * and the learner has to hold the first half in their head while parsing the
+ * second — which is exactly the attention they should be spending on the story.
+ */
+const MAX_SENTENCE_WORDS = 24;
+
+/** Report every offender at once: fixing prose one failure per run is misery. */
+const allOf = (problems: string[], label: string) =>
+  assert.ok(
+    problems.length === 0,
+    `${problems.length} ${label}:\n       - ${problems.join("\n       - ")}`,
+  );
+
+check("no sentence runs longer than a learner can hold", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    for (const { where, text } of proseOf(story)) {
+      for (const sentence of sentencesOf(text)) {
+        const n = wordCount(sentence);
+        if (n > MAX_SENTENCE_WORDS) {
+          problems.push(`${story.id}/${where}: ${n} words — "${sentence.slice(0, 80)}…"`);
+        }
+      }
+    }
+  }
+  allOf(problems, "sentence(s) too long to follow — split them");
+});
+
+/**
+ * Words a ten-year-old would stumble over. None are banned outright: a story
+ * may use any of them the moment a micro-lesson has said what it means. What is
+ * banned is dropping one in and walking on.
+ */
+const HARD_WORDS = [
+  "allele", "amortise", "arithmetic", "assembly", "attenuate", "bund",
+  "catalyst", "chronicle", "coolant", "councillor", "counterweight", "decree",
+  "dilution", "elasticity", "equilibrium", "excavation", "exotherm",
+  "exothermic", "herald", "hypothesis", "inhibitor", "irreversible", "keel",
+  "legislate", "liquidity", "locus", "maintenance", "motive", "oath",
+  "parapet", "persuasion", "phalanx", "plinth", "postholes", "protocol",
+  "quench", "rampart", "ration", "reagent", "rehearsal", "rezoning", "sacred",
+  "sally", "scepticism", "sceptic", "scrubber", "solvent", "stirrer",
+  "stoichiometry", "stratagem", "subsidised", "subsidized", "substrate",
+  "tenancy", "testimony", "thermal", "vacancy", "voucher",
+];
+
+check("no hard word is used before something explains it", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const taught = story.scenes
+      .flatMap(primersOf)
+      .map((p) => p.term.toLowerCase())
+      .join(" ");
+    for (const { where, text } of proseOf(story)) {
+      if (where.endsWith("/primer")) continue;
+      for (const word of HARD_WORDS) {
+        if (taught.includes(word)) continue;
+        const hit = new RegExp(`\\b${word}(s|es|ed|ing|d)?\\b`, "i").exec(text);
+        if (hit) problems.push(`${story.id}/${where}: "${hit[0]}"`);
+      }
+    }
+  }
+  allOf(problems, "unexplained hard word(s) — use a plainer word or add a micro-lesson");
+});
+
+/**
+ * Names are the cheapest way to lose a reader. Every new capitalised word is
+ * one more thing to remember on top of the idea the story exists to teach, and
+ * a learner who has lost track of who is speaking has stopped learning.
+ */
+const NOT_A_NAME = new Set(
+  ("a an the this that these those i you he she it we they there here and but or so if"
+    + " because before after once only just still even also when where why how what which while"
+    + " with without under over out up down in on at by for from to of as than then now"
+    + " no not nobody somebody everybody something everything anything nothing whatever whoever"
+    + " your their his her its my our all any both each either neither every same other another"
+    + " some most more less least first second third last next one two three four five six seven"
+    + " eight nine ten eleven twelve twenty thirty forty fifty hundred thousand half"
+    + " do does did don doesn let make made get got give gave keep kept stop start started say"
+    + " said tell told show shows find found test check checked measure move moved open close"
+    + " wait hold pick picked put ask asked look looking take taken run runs write wrote read"
+    + " good bad right wrong yes enough sorry ok okay maybe perhaps"
+    + " monday tuesday wednesday thursday friday saturday sunday tonight today tomorrow yesterday"
+    + " january february march april may june july august september october november december"
+  ).split(" "),
+);
+
+/** Distinct capitalised words that are not sentence-initial and not ordinary. */
+function namesIn(story: Scenario): Set<string> {
+  /** Keyed by singular root so "Greek" and "Greeks" count once. */
+  const names = new Map<string, string>();
+  for (const { where, text } of proseOf(story)) {
+    if (where === "visual" || where === "tagline") continue; // labels, not prose
+    // A real place or person named inside a "did you know" is a fact, not a
+    // character — the learner is never asked to keep track of it.
+    if (where.endsWith("/trivia")) continue;
+    for (const sentence of sentencesOf(text)) {
+      const tokens = sentence.split(/\s+/);
+      tokens.forEach((raw, i) => {
+        // Strip punctuation and any contraction tail, so "I'm" reads as "I".
+        const word = raw.replace(/[^\p{L}’'-]/gu, "").replace(/[’'].*$/u, "");
+        if (word.length < 3 || !/^\p{Lu}/u.test(word)) return;
+        if (word === word.toUpperCase()) return; // acronyms and shouted headlines
+        if (i === 0) return; // sentence-initial capitals prove nothing
+        if (/^[“"‘']/.test(raw)) return; // first word of a quotation, likewise
+        if (NOT_A_NAME.has(word.toLowerCase())) return;
+        if (/[.!?…:—-]$/.test(tokens[i - 1] ?? "")) return; // still sentence-initial
+        names.set(word.replace(/s$/, ""), word);
+      });
+    }
+  }
+  return new Set(names.values());
+}
+
+/** Three people and a place is a cast. Eight is a register of attendance. */
+const MAX_NAMES = 6;
+
+check("every scenario keeps a cast a learner can hold", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const names = [...namesIn(story)].sort();
+    if (names.length > MAX_NAMES) {
+      problems.push(`${story.id}: ${names.length} names — ${names.join(", ")}`);
+    }
+  }
+  allOf(problems, `scenario(s) with more than ${MAX_NAMES} names to remember`);
+});
+
+/* ------------------------------------------------------------------ */
+/**
+ * Delight, checked.
+ *
+ * An hour of decisions with no air in it is an exam. Trivia cards and the
+ * emoji in the prose are the air — but "make it fun" is exactly the kind of
+ * instruction that quietly rots, so both are gates rather than good
+ * intentions. The rules below are the ones that keep them from turning back
+ * into work: a fact is short, it is one fact, and it is spread through the
+ * story rather than dumped in the first chapter.
+ */
+
+const EMOJI = /\p{Extended_Pictographic}/u;
+const MIN_TRIVIA = 4;
+/** Past two sentences a "did you know" is a paragraph, and gets skipped. */
+const MAX_TRIVIA_WORDS = 42;
+
+check("every scenario hands out facts worth repeating", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const cards = story.scenes.flatMap((scene) =>
+      scene.trivia ? [{ scene, trivia: scene.trivia }] : [],
+    );
+
+    if (cards.length < MIN_TRIVIA) {
+      problems.push(`${story.id}: only ${cards.length} trivia card(s), wants ${MIN_TRIVIA}`);
+    }
+    // All in act 1 means the story stops being fun exactly when it gets hard.
+    const acts = new Set(cards.map((c) => c.scene.act));
+    if (cards.length > 0 && acts.size < 2) {
+      problems.push(`${story.id}: every trivia card sits in act ${[...acts][0]}`);
+    }
+    const titles = new Set<string>();
+    for (const { scene, trivia } of cards) {
+      const at = `${story.id}/${scene.id}`;
+      if (!EMOJI.test(trivia.emoji)) {
+        problems.push(`${at}: trivia emoji "${trivia.emoji}" is not an emoji`);
+      }
+      const titleWords = wordCount(trivia.title);
+      if (titleWords < 2 || titleWords > 5) {
+        problems.push(`${at}: trivia title is ${titleWords} word(s) — "${trivia.title}"`);
+      }
+      if (titles.has(trivia.title.toLowerCase())) {
+        problems.push(`${at}: repeats the trivia title "${trivia.title}"`);
+      }
+      titles.add(trivia.title.toLowerCase());
+
+      const sentences = sentencesOf(trivia.text);
+      if (sentences.length > 2) {
+        problems.push(`${at}: trivia runs ${sentences.length} sentences — keep it to two`);
+      }
+      const words = wordCount(trivia.text);
+      if (words > MAX_TRIVIA_WORDS) {
+        problems.push(`${at}: trivia is ${words} words — "${trivia.text.slice(0, 60)}…"`);
+      }
+    }
+  }
+  allOf(problems, "trivia problem(s)");
+});
+
+/**
+ * Emoji belong in the prose, not only in the recap rail — but one per
+ * paragraph, at most. Two is a text message; three is a ransom note.
+ */
+const MIN_EMOJI_LINES = 5;
+
+check("every scenario carries emoji in the story itself", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    let lines = 0;
+    for (const scene of story.scenes) {
+      for (const line of scene.text) {
+        const found = [...line].filter((ch) => EMOJI.test(ch));
+        if (found.length === 0) continue;
+        lines += 1;
+        if (found.length > 1) {
+          problems.push(
+            `${story.id}/${scene.id}: ${found.length} emoji in one paragraph — "${line.slice(0, 60)}…"`,
+          );
+        }
+      }
+    }
+    if (lines < MIN_EMOJI_LINES) {
+      problems.push(
+        `${story.id}: only ${lines} story paragraph(s) carry an emoji, wants ${MIN_EMOJI_LINES}`,
+      );
+    }
+  }
+  allOf(problems, "emoji problem(s) in story prose");
+});
+
+/* ------------------------------------------------------------------ */
 /**
  * `difficulty` is rendered as pips on the picker, so it is a promise. It stayed
  * a lie for a while — five stories, all "medium". These are the two levers that

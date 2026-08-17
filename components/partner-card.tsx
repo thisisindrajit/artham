@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ObserveResponse } from "@/lib/partner/types";
 import { buttonPrimary, card } from "@/lib/ui";
-import { ArthamMark } from "./artham-mark";
 
 /**
  * Artham's voice. It appears inside the scene when it has something to say and
@@ -38,9 +37,8 @@ export function PartnerCard({
   if (thinking) {
     return (
       <div
-        className={`${card} border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] slide-up flex items-center gap-3 rounded-2xl px-5 py-4`}
+        className={`${card} border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] slide-up rounded-2xl px-5 py-4`}
       >
-        <Sigil />
         <span className="pulse-soft text-[15px] text-muted">
           Artham is thinking…
         </span>
@@ -55,7 +53,6 @@ export function PartnerCard({
   return (
     <div className={`${card} border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] slide-up rounded-2xl`}>
       <div className="flex items-start gap-4 px-5 py-4">
-        <Sigil />
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center gap-2">
             <span className="text-[15px] font-bold italic text-ink">Artham</span>
@@ -144,8 +141,4 @@ function Badge({ action }: { action: ObserveResponse["action"] }) {
       {label[action]}
     </span>
   );
-}
-
-function Sigil() {
-  return <ArthamMark size={32} className="mt-0.5 w-[26px]" />;
 }

@@ -7,16 +7,25 @@ import { SimBar, SimFrame, SimSlider } from "./sim-kit";
  * One straight-line market shared by all three toys, so the learner sees the
  * same city react to three different levers.
  *
- *   families looking:  Qd = 120 - 2r
- *   homes offered:     Qs =  20 + 2r
+ *   families looking:  Qd = 111.4 - 0.86r
+ *   homes offered:     Qs =  20.0 + 2.00r
  *   (r = rent in hundreds of dollars a month, Q = thousands of homes)
  *
- * Left alone it settles at $2,500 with 70,000 homes rented.
+ * At today's $2,500 rent, 90,000 families chase 70,000 homes. Left alone, the
+ * line clears at $3,200. Adding 40,000 homes brings rent near $1,800.
  */
-const looking = (rent: number) => 120 - 2 * rent;
-const offered = (rent: number) => 20 + 2 * rent;
-const MARKET_RENT = 25;
-const SCALE = 100;
+const DEMAND_INTERCEPT = 780 / 7;
+const DEMAND_SLOPE = 6 / 7;
+const SUPPLY_INTERCEPT = 20;
+const SUPPLY_SLOPE = 2;
+
+const looking = (rent: number) => DEMAND_INTERCEPT - DEMAND_SLOPE * rent;
+const offered = (rent: number) => SUPPLY_INTERCEPT + SUPPLY_SLOPE * rent;
+const clearingRent = (demandBoost = 0, newHomes = 0) =>
+  (DEMAND_INTERCEPT + demandBoost - SUPPLY_INTERCEPT - newHomes) /
+  (DEMAND_SLOPE + SUPPLY_SLOPE);
+const MARKET_RENT = clearingRent();
+const SCALE = 110;
 
 const k = (n: number) => `${Math.round(n)},000`;
 /** Model rent (hundreds of dollars) as the dollars-a-month figure on screen. */
@@ -52,9 +61,9 @@ export function PriceCap() {
           </>
         ) : (
           <>
-            The cap is set above what people are already paying, so nothing
-            changes. A rule only bites when it asks for something the market was
-            not going to do anyway.
+            The cap is above the price where the bars meet, so nothing changes.
+            A rule only bites when it asks for a lower price than the city would
+            reach on its own.
           </>
         )
       }
@@ -94,7 +103,8 @@ export function PriceCap() {
         />
       </div>
       <p className="mt-2 text-[13px] text-muted">
-        Without any cap, rent settles at {money(MARKET_RENT)}.
+        Today’s rent is $2,500, with 20,000 families left out. With no cap and
+        no new homes, the line clears at {money(MARKET_RENT)}.
       </p>
     </SimFrame>
   );
@@ -106,10 +116,9 @@ export function PriceCap() {
 
 export function SupplyShift() {
   const [built, setBuilt] = useState(0);
-  // 120 - 2r = 20 + 2r + built  ->  r = (100 - built) / 4
-  const rent = (100 - built) / 4;
+  const rent = clearingRent(0, built);
   const rented = offered(rent) + built;
-  const capRented = offered(rent); // the same rent, reached by decree instead
+  const capRented = offered(rent); // the same rent, reached by a rule instead
 
   return (
     <SimFrame
@@ -174,12 +183,12 @@ export function SupplyShift() {
 const BUDGET_HOMES = 40;
 
 export function BudgetSplit() {
-  const [toVouchers, setToVouchers] = useState(50);
-  const helped = (BUDGET_HOMES * toVouchers) / 100;
+  const [toCashHelp, setToCashHelp] = useState(50);
+  const helped = (BUDGET_HOMES * toCashHelp) / 100;
   const built = BUDGET_HOMES - helped;
-  // Vouchers push demand up; new homes push supply up.
-  const rent = (100 + helped - built) / 4;
-  const worse = rent > MARKET_RENT;
+  // Cash help pushes demand up; new homes push supply up.
+  const rent = clearingRent(helped, built);
+  const worse = rent > MARKET_RENT + 0.001;
 
   return (
     <SimFrame
@@ -192,18 +201,16 @@ export function BudgetSplit() {
       footer={
         worse ? (
           <>
-            The {k(helped)} families holding a voucher can suddenly pay more —
-            so they do, and they bid against everyone else for the same
-            unchanged pile of homes. Rent for the whole city rises to{" "}
-            {money(rent)}. Helping renters pay is not the same as helping
-            renters.
+            The {k(helped)} families getting cash help can suddenly pay more.
+            So they do, and they bid against everyone else for the same homes.
+            Rent for the whole city rises to {money(rent)}. Helping renters pay
+            is not the same as adding homes.
           </>
         ) : (
           <>
             Money spent on getting homes built lowers rent for everyone,
-            including the families who never fill in a form. Vouchers are faster
-            and they land on the people who need them today — that is a real
-            argument for them, as long as somebody is also building.
+            including families who never fill in a form. Cash help is faster and
+            reaches people who need it today. It works best beside building.
           </>
         )
       }
@@ -230,24 +237,24 @@ export function BudgetSplit() {
       <SimBar
         label="Rent everyone in the city pays"
         value={rent}
-        max={40}
+        max={50}
         tone={worse ? "rose" : "sage"}
         caption={money(rent)}
       />
 
       <div className="mt-5">
         <SimSlider
-          label="Share of the budget spent on vouchers"
+          label="Share of the budget spent on cash help"
           min={0}
           max={100}
           step={10}
-          value={toVouchers}
-          onChange={setToVouchers}
+          value={toCashHelp}
+          onChange={setToCashHelp}
           left="all to building"
-          right="all to vouchers"
+          right="all to cash help"
           middle={
             <span className="font-mono tabular-nums font-medium text-ink">
-              {toVouchers}% vouchers
+              {toCashHelp}% cash help
             </span>
           }
         />

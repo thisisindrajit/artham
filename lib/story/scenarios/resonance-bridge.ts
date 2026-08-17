@@ -1,9 +1,10 @@
 import type { Scenario } from "../types";
 
 /**
- * Act 1 diagnoses, act 2 intervenes, act 3 breaks the learner's fix so the
- * scenario tests whether they understood the *relationship* between the
- * driving frequency and the natural frequency — not just "heavier is safer".
+ * Act 1 follows one question: why is a small wind making a large bounce?
+ * Act 2 uses that answer to make the bridge safe for the moment.
+ * Act 3 changes the wind, so the learner sees why the gap matters more than
+ * the first fix that opened it.
  *
  * Two beats are deliberately judgement calls rather than physics puzzles (s4
  * closing the bridge, s13 the permanent fix). They are what an engineer on
@@ -26,19 +27,19 @@ export const resonanceBridge: Scenario = {
     concept: "Resonance",
     field: "Physics",
     inOneLine:
-      "Every object has a rhythm it prefers to move at. When pushes keep arriving in time with that rhythm, each one adds to the last, so a gentle force builds enormous movement.",
+      "Every object has a rhythm it likes. When small pushes arrive on that beat, each push adds to the last.",
     rule:
-      "Big movement does not need a big force — it needs well-timed force. So you don't fix it by making things stronger. You break the match: shift the object's rhythm away from the pushes, or stop the pushes arriving in step.",
+      "Big movement does not need a big force. It needs well-timed force. Fix it by opening a gap, or by breaking the steady pushes.",
     elsewhere: [
-      "A singer holding one note until a wine glass shatters — the note matches the glass's rhythm.",
-      "A microphone creeping towards its own speaker until a faint hum becomes a scream.",
-      "Soldiers breaking step before crossing a footbridge, so their marching never lines up with it.",
-      "Tuning a radio: you are moving a circuit's rhythm onto one station's and away from every other.",
+      "A singer holds one note near a glass. If the note matches, the glass starts to shake.",
+      "A microphone near its speaker can turn a tiny hum into a loud squeal.",
+      "Soldiers break step on a footbridge, so their feet do not all push on one beat.",
+      "Tuning a radio means moving its rhythm onto one station and away from the others.",
     ],
     youUsedIt: [
-      "You measured the deck's own rhythm instead of guessing at the wind.",
-      "You hung weight to move that rhythm away from the gusts.",
-      "You took the weight straight back off when the storm's band swallowed the new rhythm.",
+      "You measured the deck and the gusts before changing anything.",
+      "You added weight to move the deck away from the first wind beat.",
+      "You changed course when the storm found the new, slower deck beat.",
     ],
   },
   minutes: 10,
@@ -49,16 +50,16 @@ export const resonanceBridge: Scenario = {
     role: "engineer on call",
     cta: "Step onto the bridge",
     text: [
-      "The Aetherfall Bridge opened eleven days ago.",
+      "The Aetherfall bridge opened eleven days ago.",
       "At 4:12 a.m., Nadia from the night shift calls you.",
       "“The bridge is bouncing,” she says. “Like a diving board.”",
-      "You are the engineer on call. A storm is 90 minutes away, and the first buses arrive at 5:30.",
+      "You are the engineer on call. A storm is about two hours away, and the first buses arrive at 5:30.",
     ],
     visual: {
       kind: "bridge",
       title: "Aetherfall, eleven days old",
       caption: "A brand new bridge doing something a bridge should not do.",
-      status: "04:12 · storm in 90 min",
+      status: "04:12 · storm near 06:10",
     },
   },
   preSession: {
@@ -103,9 +104,10 @@ export const resonanceBridge: Scenario = {
       },
       type: "narrative",
       text: [
-        "Floodlights. Cold wind. A hard hat slides across the empty road by itself.",
+        "When you reach the bridge, floodlights shine through cold wind.",
+        "A hard hat slides across the empty road by itself. 🎩",
         "“It started small,” Nadia says. “Now every bounce is bigger.”",
-        "Tobi, the foreman, has a crane ready. His crew is still standing on the moving deck.",
+        "Tobi, the foreman, has a crane ready. His crew is still on the moving deck.",
         "The first airport bus arrives in 59 minutes. Nobody has measured the bounce yet.",
       ],
       next: "s2",
@@ -122,7 +124,10 @@ export const resonanceBridge: Scenario = {
         status: "crew waiting on you",
       },
       type: "choice",
-      text: ["Everyone has a theory. Nobody has a number."],
+      text: [
+        "The deck keeps jumping under your boots.",
+        "Everyone has a theory. Nobody has a number.",
+      ],
       prompt: "What do you do first?",
       concept: "Measure a repeating problem before you try to fix it.",
       probe: "Why that first?",
@@ -133,7 +138,7 @@ export const resonanceBridge: Scenario = {
           detail: "Measure the deck's rhythm and the gusts' rhythm.",
           correct: true,
           outcome:
-            "Tobi's crew bolts two sensors to the deck and a wind gauge to the north tower. By 4:40 you have numbers instead of theories — and the numbers are stranger than anyone guessed.",
+            "Tobi's crew bolts two sensors to the deck and a wind gauge to the north tower. At 4:40, one screen lights up with two matching lines.",
           approach: "measure_first",
           next: "s3",
         },
@@ -164,11 +169,11 @@ export const resonanceBridge: Scenario = {
       ],
       consequences: {
         counterweight:
-          "Two tonnes go on. The deck settles for forty seconds, then comes back worse. Tobi looks down from the crane. “That made it bigger.”",
+          "Two tonnes go on. The deck settles for forty seconds, then comes back worse. Tobi looks down from the crane. “We are guessing.”",
         cables:
           "The crew tensions a cable. The deck keeps bouncing the same amount, at exactly the same speed. Slack is not the problem.",
         designer:
-          "Dr. Vance answers from an airport. “How fast is the deck bouncing? How fast are the gusts?” You have no answer. “Call me when you have those two numbers.”",
+          "Dr. Vance answers from a taxi. “How fast is the deck bouncing? How fast are the gusts?” You have no answer yet.",
       },
       hints: [
         "You have guesses, but no numbers. What can you measure?",
@@ -187,12 +192,18 @@ export const resonanceBridge: Scenario = {
         caption: "Two different sensors show the same rhythm.",
         status: "sensors online · 04:40",
       },
+      trivia: {
+        emoji: "🎵",
+        title: "Swing set physics",
+        text: "A playground swing has one rhythm it likes. Push it right on that beat and each shove adds to the last, so it climbs higher.",
+      },
       type: "narrative",
       text: [
-        "By 4:40, the sensors are ready.",
-        "The deck bounces 1.20 times a second. That is its own rhythm — like the rhythm of a playground swing.",
-        "The gusts also hit 1.20 times a second.",
-        "The two rhythms match exactly. Tobi stops chewing his gum.",
+        "The screen that lit up at 4:40 shows two lines.",
+        "The deck bounces 1.20 times a second. That is its own rhythm, like a playground swing.",
+        "The gusts also hit 1.20 times a second. 💨",
+        "The match explains why every bounce is bigger.",
+        "Tobi stops chewing his gum. “People are still standing on that thing.”",
       ],
       next: "s4",
     },
@@ -207,11 +218,17 @@ export const resonanceBridge: Scenario = {
         caption: "The movement is growing fast. People are still on the deck.",
         status: "04:52 · deck 310 mm",
       },
+      trivia: {
+        emoji: "🥾",
+        title: "Soldiers break step",
+        text: "Marching soldiers are told to break step on old footbridges. If every boot landed at once, the pushes might match the bridge's rhythm and shake it.",
+      },
       type: "choice",
       text: [
-        "An hour ago, the deck moved 40 mm. Now it moves 310 mm.",
+        "The matching lines would be exciting if the deck were empty.",
+        "An hour ago, the deck moved 40 mm. Now it moves 310 mm. 📈",
         "Traffic opens in 38 minutes. Tobi's crew is still on the deck. The hospital says an ambulance may need this route.",
-        "Kiran from the mayor's office texts: “Can we keep one lane open?”",
+        "The city office texts: “Can we keep one lane open?”",
       ],
       prompt: "What's your call?",
       concept:
@@ -223,7 +240,7 @@ export const resonanceBridge: Scenario = {
           detail: "Nobody on it until you know what this is.",
           correct: true,
           outcome:
-            "Barriers go up at both ends. Tobi walks his crew off the deck and Kiran reroutes the buses, unhappily. The bridge is empty, still bouncing — and now it can only cost the city money, not people.",
+            "Barriers go up at both ends. Tobi walks his crew off, and the buses get a longer route. The bridge is empty now, so the next question is the bounce itself.",
           next: "s5",
         },
         {
@@ -242,7 +259,7 @@ export const resonanceBridge: Scenario = {
         },
         {
           id: "kiran",
-          label: "Ask Kiran how to handle it",
+          label: "Ask the city office how to handle it",
           detail: "Get the messaging right before you do anything visible.",
           correct: false,
           approach: "follow_authority",
@@ -254,7 +271,7 @@ export const resonanceBridge: Scenario = {
           "One lane stays open. A test van reaches the middle just as the deck jumps. The driver stops and will not move. Nadia closes the bridge herself. “People first.”",
         wait: "You wait. The movement climbs from 310 to 380 mm. A tool case slides into the barrier. The bridge should already be empty.",
         kiran:
-          "Kiran is a press officer. He writes you a lovely sentence about “routine monitoring by our engineering team.” The deck keeps bouncing throughout.",
+          "The city office writes a neat line about “routine checks.” It does not move anyone off the deck. The bounce keeps growing.",
       },
       hints: [
         "What happens if the next bounce is much bigger?",
@@ -276,19 +293,20 @@ export const resonanceBridge: Scenario = {
       type: "choice",
       simulation: "timed-pushes",
       text: [
+        "With the deck empty, you can study the bounce without risking people.",
         "The deck bounces at its own rhythm, 1.20 times a second, and the gusts repeat at 1.20 too.",
-        "The wind is not stronger. But each push lands at just the right time.",
-        "Try the model below. Push with the deck, then push against it, and watch what changes.",
+        "The wind is not stronger. Each push just lands at the right time.",
+        "Try the model below. Push with the deck, then against it, and watch what changes.",
       ],
       primer: {
-        term: "Its own rhythm",
+        term: "Own rhythm",
         plain:
-          "Every object has one speed it prefers to wobble at. Nudge it, let go, and that is the speed it settles into — its size and weight decide it, not you.",
+          "Every object has one speed it likes to wobble at. Nudge it, let go, and it settles into that speed.",
         like: "a wine glass that rings at the same note however hard you tap it.",
       },
       prompt: "Why does the bounce keep growing?",
       concept:
-        "Resonance: a push that arrives in time with the movement adds to it.",
+        "A push that arrives in time with the movement adds to it.",
       options: [
         {
           id: "stronger",
@@ -303,7 +321,7 @@ export const resonanceBridge: Scenario = {
           detail: "Each push adds to the movement already there.",
           correct: true,
           outcome:
-            "Dr. Vance, on the phone from her kitchen, goes quiet for a long moment. “Say that number again,” she says. “Both of them.” You have just told her the bridge is not breaking. It is being played like an instrument.",
+            "You tell Dr. Vance both numbers over the phone. She goes quiet, then says, “That means the bridge is being played like an instrument.”",
           approach: "seek_pattern",
           next: "s6",
         },
@@ -340,19 +358,25 @@ export const resonanceBridge: Scenario = {
       id: "s6",
       act: 1,
       mood: "insight",
-      beat: "Resonance",
+      beat: "The match",
       visual: {
         kind: "resonance",
         title: "Perfect timing, not big force",
         caption: "Small pushes, perfectly timed, stack into a big one.",
         status: "cause found · 05:06",
       },
+      trivia: {
+        emoji: "🌉",
+        title: "London's wobbly bridge",
+        text: "London's Millennium Bridge opened in June 2000, then shut two days later. Walkers had matched their steps to its slight sway, and the sway grew.",
+      },
       type: "narrative",
       text: [
-        "This is resonance: small pushes become dangerous when they match an object's rhythm.",
-        "Think of a swing. A gentle push at the right time makes it climb higher and higher.",
+        "Dr. Vance's words make the night click into place.",
+        "Small pushes become dangerous when they match an object's rhythm.",
+        "Think of a swing. A gentle push at the right time makes it climb higher. 🎠",
         "The wind is not powerful. Its timing is perfect.",
-        "Dr. Vance goes quiet when you give her the numbers. “The first design had a damper — a shock absorber for bridges. It was cut to save money.”",
+        "“The first design had a shock absorber for the deck,” Dr. Vance says. “It was cut to save money.”",
         "A metal joint slams against its stop below you. “Then tell me how to break the match,” you say.",
       ],
       next: "s6b",
@@ -370,13 +394,14 @@ export const resonanceBridge: Scenario = {
       },
       type: "reorder",
       text: [
-        "“Before I sign off on anything,” Dr. Vance says, “tell me the story of tonight in order. Walk me through the resonance. If you can\u2019t, you don\u2019t know it yet.”",
+        "Dr. Vance will not let you grab the crane until you can say the idea back.",
+        "“Tell me the story of tonight in order,” she says. “Walk me through the resonance.”",
         "Nadia holds up her phone to record you.",
       ],
       primer: {
         term: "Resonance",
         plain:
-          "What happens when pushes arrive in time with an object's own rhythm. Each push adds to the last instead of fighting it, so tiny forces build into huge movement.",
+          "Resonance happens when pushes arrive in time with an object's own rhythm. Each push adds, so tiny forces build into huge movement.",
         like: "pushing a child on a swing. You are not strong — you are just well timed.",
       },
       prompt: "How did a light breeze turn into a bouncing bridge?",
@@ -409,7 +434,7 @@ export const resonanceBridge: Scenario = {
       wrong:
         "Dr. Vance stops you. “That order doesn\u2019t work. Something in the middle has to come before the deck can start growing.” Nadia lowers the phone.",
       right:
-        "“Good,” Dr. Vance says. “You didn\u2019t say the wind got stronger, because it didn\u2019t. Now go break the match.”",
+        "“Good,” Dr. Vance says. “You did not blame stronger wind. Now use that chain to break the match.”",
       concept:
         "Resonance is a chain: matching rhythm, then good timing, then growth.",
       probe: "Which step is the one you could actually change tonight?",
@@ -435,7 +460,7 @@ export const resonanceBridge: Scenario = {
       },
       type: "narrative",
       text: [
-        "Tobi's weight idea can work now that you know why.",
+        "Because you can name the chain, Tobi's weight idea finally has a purpose.",
         "Weight makes the deck bounce more slowly. Move its rhythm far enough from 1.20, and the gusts stop adding up.",
         "“How much?” Tobi asks as he climbs into the crane.",
         "The mounts can safely hold 52 tonnes. Any more could tear them out.",
@@ -453,16 +478,21 @@ export const resonanceBridge: Scenario = {
         caption: "Choose enough weight to break the match — but not too much.",
         status: "crane hooked up · 05:14",
       },
+      trivia: {
+        emoji: "🏢",
+        title: "Taipei's steel ball",
+        text: "High up in Taipei 101, a huge steel ball hangs on cables. When the tower sways, the ball leans the other way and quiets it.",
+      },
       type: "slider",
       text: [
-        "The crane is ready. A joint under the deck slams again. The crew needs your number now.",
+        "Tobi waits in the crane. A joint under the deck slams again. 🚧",
         "The gust rhythm is 1.20 times a second. Keep a separation of at least 0.25 between it and the deck. Do not go above 52 tonnes.",
       ],
       prompt: "How much weight goes on?",
       primer: {
         term: "Separation",
         plain:
-          "The gap between the two rhythms. When the gap is zero the pushes line up perfectly; open a gap and they start cancelling each other out instead.",
+          "The gap between two rhythms. When the gap is zero, pushes line up. Open a gap and they stop building the bounce.",
         like: "two people clapping at slightly different speeds — they drift apart instead of building a beat.",
       },
       concept:
@@ -498,7 +528,7 @@ export const resonanceBridge: Scenario = {
         },
         {
           max: 52,
-          text: "It holds. The deck starts settling because the gusts now arrive at the wrong time.",
+          text: "It holds. The deck starts settling because the gusts now arrive at the wrong time. By 5:31, people can breathe again.",
         },
         {
           max: 70,
@@ -525,8 +555,8 @@ export const resonanceBridge: Scenario = {
       },
       type: "reflect",
       text: [
-        "At 5:31, the deck is almost still. Tobi's crew cheers from the road.",
-        "Nadia hands you terrible coffee. “Explain that fix without engineer words.”",
+        "By 5:31, the deck is almost still. Tobi's crew cheers from the road.",
+        "Nadia hands you terrible coffee. “Tell me why that worked, but use kid words.” ☕",
       ],
       prompt: "Why did the weight actually work?",
       placeholder: "One or two simple sentences.",
@@ -545,12 +575,17 @@ export const resonanceBridge: Scenario = {
         caption: "The weighted deck now sits inside the storm's danger band.",
         status: "06:04 · storm early",
       },
+      trivia: {
+        emoji: "🎤",
+        title: "Singer breaks a glass",
+        text: "A trained singer can shatter a wine glass by holding one steady note. The note matches the glass's own rhythm, so tiny waves stack until the glass cracks.",
+      },
       type: "narrative",
       text: [
-        "At 6:04, the storm arrives twenty minutes early.",
+        "While Nadia is still holding your coffee, the storm arrives seven minutes early.",
         "The wind turns and hits the bridge from a new direction. Its rhythm now moves between 0.83 and 0.95 times a second.",
-        "Your weighted deck sits inside that range. The two rhythms can match again.",
-        "The warning siren starts. Movement jumps from 20 to 110 mm in two minutes.",
+        "Your weighted deck now sits in that danger range. The two rhythms can match again.",
+        "The warning siren starts. Movement jumps from 20 to 110 mm in two minutes. 🚨",
         "Tobi is still in the crane. Your fix has become the new danger.",
       ],
       next: "s11",
@@ -569,7 +604,7 @@ export const resonanceBridge: Scenario = {
       type: "choice",
       simulation: "storm-band",
       text: [
-        "The storm fills a band of rhythms from 0.83 to 0.95. The weighted deck is trapped inside it.",
+        "The storm fills a band of rhythms from 0.83 to 0.95. The weighted deck is trapped in it.",
         "Rain hides the far tower. The movement is still rising. You have minutes.",
         "Move the deck marker in the model below and find a safe gap before you choose.",
       ],
@@ -577,7 +612,7 @@ export const resonanceBridge: Scenario = {
       primer: {
         term: "A band of rhythms",
         plain:
-          "A storm does not push at one steady speed. It pushes at every speed across a stretch, so anything whose own rhythm falls inside that stretch gets hit in time.",
+          "A storm does not push at one steady speed. It pushes across a stretch, so some beats can still land at the right time.",
         like: "a radio station that isn't one point on the dial but a whole smear of it.",
       },
       concept:
@@ -597,7 +632,7 @@ export const resonanceBridge: Scenario = {
           detail: "Return the deck to 1.20, above the storm range.",
           correct: true,
           outcome:
-            "You call it over the radio and Tobi swings the crane out into the rain. It is the hardest order of the night: undoing, on purpose, the thing that worked an hour ago.",
+            "You call it over the radio. As Tobi lifts the weight, the deck's rhythm climbs back toward 1.20, above the storm band.",
           approach: "abandon_hypothesis",
           next: "s12",
         },
@@ -607,7 +642,7 @@ export const resonanceBridge: Scenario = {
           detail: "Break up the gusts so they cannot keep one rhythm.",
           correct: true,
           outcome:
-            "The vents crank open along the deck edge and the airflow breaks into chop. The gusts are still there — they just cannot arrange themselves into one steady beat any more.",
+            "The vents crank open along the deck edge. The airflow breaks into messy chops, so the gusts cannot hold one steady beat.",
           approach: "seek_pattern",
           next: "s12",
         },
@@ -644,9 +679,9 @@ export const resonanceBridge: Scenario = {
       },
       type: "narrative",
       text: [
-        "Whatever you called in, the crew makes it real in the driving rain.",
-        "At 6:40, the two rhythms have pulled apart again. They no longer meet.",
-        "The warning siren stops. The movement falls.",
+        "That order becomes real in the driving rain.",
+        "By 6:40, the storm no longer finds a steady match.",
+        "The warning siren stops. The movement falls. 🌅",
         "Nadia looks at you. “So that's twice tonight you've opened the gap — and never the same way twice.”",
         "“The real fix was the gap. The weight was only one way to make it.”",
       ],
@@ -663,17 +698,26 @@ export const resonanceBridge: Scenario = {
         caption: "Four ideas. Very different shelf lives.",
         status: "07:20 \u00b7 city on the phone",
       },
-      primer: {
-        term: "A stopgap",
-        plain:
-          "a fix that holds only while today's conditions hold. It buys you time, and it stops working the moment the situation changes.",
-        like: "a bucket under a leak \u2014 fine tonight, useless in a month.",
-      },
+      primer: [
+        {
+          term: "A stopgap",
+          plain:
+            "A fix that holds only while today's conditions hold. It buys time, but it can fail when the situation changes.",
+          like: "a bucket under a leak \u2014 fine tonight, useless in a month.",
+        },
+        {
+          term: "A damper",
+          plain:
+            "A weight on springs that moves late. When the deck swings one way, it pulls the other way.",
+          like: "someone leaning the opposite way every time a boat rocks.",
+        },
+      ],
       type: "reorder",
       text: [
-        "Someone from the city is on the phone asking what happens next. Dr. Vance draws four boxes on the whiteboard.",
+        "After the siren stops, someone from the city asks what happens next.",
+        "Dr. Vance draws four boxes on the whiteboard.",
         "\u201cRank them,\u201d she says. \u201cNot by how good they are. By how long each one keeps working.\u201d",
-        "\u201cTwo of these are stopgaps,\u201d she adds. \u201cThat is not an insult \u2014 a stopgap just comes with an expiry date, and you need to know which end of the list it sits at.\u201d",
+        "\u201cTwo of these are stopgaps,\u201d she adds. \u201cThat is not an insult. A stopgap just comes with an expiry date. You need to know where it sits.\u201d",
       ],
       prompt: "Which fix holds for how long?",
       instruction:
@@ -692,7 +736,7 @@ export const resonanceBridge: Scenario = {
         {
           id: "damper",
           label: "Bolt on the damper that was cut",
-          detail: "Pushes back against any bounce, whatever its rhythm.",
+          detail: "Pulls against any bounce, whatever its rhythm.",
         },
         {
           id: "reshape",
@@ -703,7 +747,7 @@ export const resonanceBridge: Scenario = {
       wrong:
         "Dr. Vance taps the board. \u201cNo. One of those only works for the exact wind we had last night \u2014 and the next storm will not read our notes.\u201d",
       right:
-        "\u201cThat\u2019s the order,\u201d she says. \u201cThe last two stop caring what the wind does. That is the difference between a patch and a fix.\u201d",
+        "\u201cThat\u2019s the order,\u201d she says. \u201cThe last two keep working when the wind changes. Put one of those in the report.\u201d",
       concept:
         "A patch works for one situation; a fix works for situations you have not seen yet.",
       probe: "What makes the last one outlast the others?",
@@ -725,15 +769,21 @@ export const resonanceBridge: Scenario = {
         caption: "The next storm will have a different rhythm.",
         status: "storm gone · report due",
       },
+      trivia: {
+        emoji: "🔧",
+        title: "Fixing the wobble",
+        text: "London's Millennium Bridge stayed shut for almost two years. Engineers bolted on dampers that pull against every sway, and it has stayed calm since 2002.",
+      },
       primer: {
-        term: "A damper",
+        term: "Permanent fix",
         plain:
-          "a heavy weight hung on springs inside the deck. When the deck swings one way the weight lags behind and pulls the other way, so it fights the bounce instead of joining in.",
-        like: "someone leaning the opposite way every time a boat rocks.",
+          "A repair that keeps helping when weather changes. It does not depend on one lucky number from one night.",
+        like: "a raincoat instead of one towel for one puddle.",
       },
       type: "choice",
       text: [
-        "By 9 a.m., the storm is gone. Dr. Vance is in the site hut with your readings.",
+        "By 9 a.m., the storm is gone, and the report is due.",
+        "Dr. Vance is in the site hut with your readings.",
         "The city needs a permanent fix — one that works in winds you have not seen yet.",
       ],
       prompt: "What goes in the report?",
@@ -746,7 +796,7 @@ export const resonanceBridge: Scenario = {
           detail: "A moving weight that pushes back whenever the deck bounces.",
           correct: true,
           outcome:
-            "Dr. Vance signs it before you finish the sentence. “It was on the drawings in 2019,” she says. “Somebody costed it out at a meeting I wasn't in.”",
+            "Dr. Vance signs it before you finish the sentence. The damper will pull against any bounce, so the bridge will stop feeding itself.",
           approach: "seek_pattern",
           next: "s14",
         },
@@ -756,7 +806,7 @@ export const resonanceBridge: Scenario = {
           detail: "Change the airflow so gusts cannot form one steady rhythm.",
           correct: true,
           outcome:
-            "Dr. Vance nods slowly. “Attack the pushes instead of the bridge. That holds for winds we haven't met yet.” She starts sketching edge profiles on the back of your readings.",
+            "Dr. Vance nods. Reshaped edges will break up the gusts before they form a beat, so the next storm gets less to play.",
           approach: "seek_pattern",
           next: "s14",
         },
@@ -803,9 +853,9 @@ export const resonanceBridge: Scenario = {
       type: "ending",
       outcome: "success",
       text: [
-        "The Aetherfall Bridge reopens at noon. Nadia finally goes home.",
+        "The Aetherfall bridge reopens at noon. Nadia finally goes home. 🌞",
         "The bridge was not too weak. Its rhythm matched the wind, so small pushes kept adding up.",
-        "You broke that match twice, in opposite directions.",
+        "You broke that match twice. First you moved the deck. Then you changed course when the storm changed.",
         "Tomorrow, crews begin fitting the permanent fix. Tonight, the bridge is still.",
       ],
     },

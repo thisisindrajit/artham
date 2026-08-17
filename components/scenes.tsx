@@ -5,13 +5,17 @@ import { DeckWave } from "./deck-wave";
 import { StorySimulation } from "./story-simulation";
 import { readoutFor, sliderRisk } from "@/lib/engine/formulas";
 import { shuffledStepIds } from "@/lib/story/shuffle";
+import { storyEmoji } from "@/lib/story/emoji";
 import type {
   ChoiceScene,
   EndingScene,
   NarrativeScene,
   ReflectScene,
   ReorderScene,
+  Scene,
   ScenePrimer,
+  SceneTrivia,
+  SessionNotes,
   SliderScene,
   StoryTakeaway,
 } from "@/lib/story";
@@ -25,7 +29,7 @@ import {
 } from "@/lib/ui";
 
 const STORY_PARTS =
-  /(“[^”]+”|\$?[\d][\d,.]*(?:\s?(?:a\.m\.|p\.m\.|Hz|°C|t|L|k|%))?)/g;
+  /(“[^”]+”|\$?[\d][\d,.]*(?:\s?(?:a\.m\.|p\.m\.|Hz|°C|t|L|k|%)(?!\p{L}))?)/gu;
 
 /**
  * The story copy already contains the authorial cues we need. Dialogue gets
@@ -101,7 +105,7 @@ export function PrimerCard({
           style={{ animationDelay: `${delay + i * 140}ms` }}
         >
           <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-accent/50 bg-white px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink/70">
-            <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+            <span aria-hidden>💡</span>
             In plain words
           </span>
           <p className="text-[16px] leading-[1.6] text-ink/85">
@@ -122,6 +126,69 @@ export function PrimerCard({
   );
 }
 
+/**
+ * The page's own heading.
+ *
+ * The rail at the top of the window names the beat too, but in 13px uppercase
+ * in a corner — which reads as chrome, not as part of the story. Repeating it
+ * here, with the beat's emoji, gives every page a face and makes the sheet
+ * feel like a page of a book rather than a form.
+ */
+export function SceneHeading({
+  scene,
+  className = "",
+}: {
+  scene: Scene;
+  className?: string;
+}) {
+  return (
+    <p
+      className={`rise flex items-center gap-2 text-[13px] font-extrabold tracking-[0.14em] text-ink/55 uppercase ${className}`}
+    >
+      <span aria-hidden className="text-[17px] leading-none">
+        {storyEmoji(scene.visual.kind)}
+      </span>
+      <span className="min-w-0 truncate">{scene.beat}</span>
+    </p>
+  );
+}
+
+/**
+ * The "did you know" card.
+ *
+ * Deliberately the only block on the page a learner may skip with nothing
+ * lost. It exists to buy a breath between decisions and to make the world feel
+ * inhabited — the siege engine really was built, the bridge really did fall.
+ * Styled unlike the primer on purpose: dashed orange means "you need this",
+ * this soft slate card means "enjoy this".
+ */
+export function TriviaCard({
+  trivia,
+  delay = 0,
+}: {
+  trivia: SceneTrivia;
+  delay?: number;
+}) {
+  return (
+    <aside
+      className="rise relative rotate-[0.35deg] rounded-2xl border-[1.5px] border-ink/12 bg-ink/[0.035] px-5 pt-5 pb-4 shadow-[0_3px_0_rgba(23,23,23,0.05)]"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-ink/15 bg-white px-2.5 py-0.5 text-[11px] font-bold tracking-[0.14em] text-ink/60 uppercase">
+        <span aria-hidden>{trivia.emoji}</span>
+        Did you know
+      </span>
+      <p className="text-[15px] leading-[1.6] text-ink/80">
+        <strong className="font-extrabold tracking-tight text-ink italic">
+          {trivia.title}
+        </strong>
+        {" — "}
+        <StoryCopy text={trivia.text} />
+      </p>
+    </aside>
+  );
+}
+
 export function NarrativeView({
   scene,
   onAdvance,
@@ -132,9 +199,12 @@ export function NarrativeView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && (
+        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
+      )}
       <PrimaryButton
         onClick={onAdvance}
-        delay={scene.text.length * 110 + 120}
+        delay={scene.text.length * 110 + (scene.trivia ? 260 : 120)}
         label="Continue"
       />
     </div>
@@ -159,6 +229,9 @@ export function ChoiceView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && (
+        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
+      )}
       {scene.primer && (
         <PrimerCard primer={scene.primer} delay={scene.text.length * 110} />
       )}
@@ -166,6 +239,7 @@ export function ChoiceView({
 
       <div className="space-y-3">
         <span className={`${storyTag} rise inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic`}>
+          <span aria-hidden className="mr-1.5 not-italic">🎯</span>
           Your move
         </span>
         <h2 className="rise text-[21px] font-bold tracking-tight text-ink">
@@ -268,6 +342,9 @@ export function SliderView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && (
+        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
+      )}
       {scene.primer && (
         <PrimerCard primer={scene.primer} delay={scene.text.length * 110} />
       )}
@@ -347,6 +424,7 @@ export function SliderView({
 
       <div className="space-y-3">
         <span className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic`}>
+          <span aria-hidden className="mr-1.5 not-italic">🎛️</span>
           Tune it
         </span>
         <h2 className="text-[21px] font-bold tracking-tight text-ink">
@@ -403,6 +481,9 @@ export function ReorderView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && (
+        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
+      )}
       {scene.primer && (
         <PrimerCard primer={scene.primer} delay={scene.text.length * 110} />
       )}
@@ -410,6 +491,7 @@ export function ReorderView({
 
       <div className="space-y-3">
         <span className={`${storyTag} rise inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic`}>
+          <span aria-hidden className="mr-1.5 not-italic">🧩</span>
           Put it in order
         </span>
         <h2 className="rise text-[21px] font-bold tracking-tight text-ink">
@@ -499,8 +581,12 @@ export function ReflectView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && (
+        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
+      )}
       <div className="rise space-y-3" style={{ animationDelay: "160ms" }}>
         <p className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic tracking-[0.12em] uppercase`}>
+          <span aria-hidden className="mr-1.5 not-italic">💭</span>
           Quick thought
         </p>
         <p className="text-[17px] leading-relaxed text-ink/90">
@@ -553,7 +639,7 @@ export function TakeawayCard({
       style={{ animationDelay: `${delay}ms` }}
     >
       <span className="absolute -top-3 left-6 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-accent/45 bg-white px-2.5 py-0.5 text-[11px] font-bold tracking-[0.14em] text-ink/70 uppercase">
-        <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+        <span aria-hidden>🧠</span>
         What you now know
       </span>
 
@@ -609,6 +695,7 @@ export function EndingView({
   return (
     <div className="space-y-8">
       <Narration text={scene.text} />
+      {scene.trivia && <TriviaCard trivia={scene.trivia} delay={base} />}
       <TakeawayCard takeaway={takeaway} delay={base + 140} />
       <PrimaryButton
         onClick={onFinish}
@@ -616,6 +703,145 @@ export function EndingView({
         delay={base + 320}
       />
     </div>
+  );
+}
+
+/**
+ * A page the learner has already played, reopened read-only.
+ *
+ * Going back must never mean *replaying*: the profile is built from what they
+ * actually did, so a second run at a decision they already made would either
+ * double-count or silently overwrite it. So the controls are gone and what
+ * they chose is shown in their place. Re-reading is free; rewriting is not.
+ */
+export function ReviewView({
+  scene,
+  notes,
+}: {
+  scene: Scene;
+  notes: SessionNotes;
+}) {
+  const decision = notes.decisions.filter((d) => d.sceneId === scene.id).at(-1);
+  const experiment = notes.experiments
+    .filter((e) => e.sceneId === scene.id)
+    .at(-1);
+  const said = notes.reasoningSamples
+    .filter((r) => r.sceneId === scene.id)
+    .at(-1);
+
+  return (
+    <div className="space-y-7">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span
+          className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic`}
+        >
+          <span aria-hidden className="mr-1.5 not-italic">
+            🔖
+          </span>
+          Looking back
+        </span>
+        <SceneHeading scene={scene} className="min-w-0" />
+      </div>
+
+      <Narration text={scene.text} />
+      {scene.trivia && <TriviaCard trivia={scene.trivia} />}
+      {"primer" in scene && scene.primer && <PrimerCard primer={scene.primer} />}
+
+      {(decision || experiment || said) && (
+        <div className="rounded-2xl border border-line bg-accent/[0.05] px-5 py-4">
+          <p className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/60 uppercase">
+            What you did here
+          </p>
+          <ul className="mt-2 space-y-1.5 text-[15px] leading-[1.55] text-ink/80">
+            {decision && <li>You chose: {decision.choice}</li>}
+            {experiment && <li>You settled on: {experiment.value}</li>}
+            {said && <li>You said: {said.answer}</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Page turner for beats the learner has already reached.
+ *
+ * "Next" only lights up while looking back, because forward through *unplayed*
+ * story is not navigation — it is the decision on the page, and skipping it
+ * would leave the profile describing a run that never happened.
+ */
+export function StoryNav({
+  index,
+  total,
+  reviewing,
+  onBack,
+  onNext,
+}: {
+  index: number;
+  total: number;
+  reviewing: boolean;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const canBack = index > 0;
+  const canNext = reviewing;
+  return (
+    <div className="mt-9 flex items-center justify-between gap-3 border-t border-line pt-4">
+      <NavButton
+        dir="back"
+        label="Previous"
+        disabled={!canBack}
+        onClick={onBack}
+      />
+      <span className="text-center text-[11.5px] font-semibold tracking-[0.12em] text-faint uppercase">
+        Page {index + 1} of {total}
+      </span>
+      <NavButton
+        dir="next"
+        label={reviewing && index === total - 2 ? "Catch up" : "Next"}
+        disabled={!canNext}
+        onClick={onNext}
+      />
+    </div>
+  );
+}
+
+function NavButton({
+  dir,
+  label,
+  disabled,
+  onClick,
+}: {
+  dir: "back" | "next";
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="group inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-[14px] font-bold text-muted shadow-[0_2px_0_rgba(23,23,23,0.08)] transition hover:-translate-y-0.5 hover:border-accent/55 hover:bg-accent/10 hover:text-ink active:translate-y-0 active:shadow-none disabled:pointer-events-none disabled:opacity-30"
+    >
+      {dir === "back" && (
+        <span
+          aria-hidden
+          className="transition-transform duration-200 group-hover:-translate-x-0.5"
+        >
+          ←
+        </span>
+      )}
+      {label}
+      {dir === "next" && (
+        <span
+          aria-hidden
+          className="transition-transform duration-200 group-hover:translate-x-0.5"
+        >
+          →
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -638,6 +864,9 @@ export function ConsequenceView({
         }`}
       >
         <p className="mb-2 text-[13px] font-extrabold italic tracking-[0.16em] text-ink/75 uppercase">
+          <span aria-hidden className="mr-1.5 not-italic">
+            {correct ? "✅" : "⚠️"}
+          </span>
           {correct ? "That worked" : "Meanwhile…"}
         </p>
         <p className="text-[17px] leading-[1.7] text-ink/85">

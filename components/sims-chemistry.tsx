@@ -148,14 +148,14 @@ export function HeatRace() {
 /* feed-slow — you control the heat by controlling the feed             */
 /* ------------------------------------------------------------------ */
 
-const LIMIT = 140;
+const LIMIT = 110;
 
 export function FeedSlow() {
   const [mode, setMode] = useState<"dump" | "drip">("dump");
   const dump = mode === "dump";
 
   const curve = (t: number) =>
-    dump ? 60 + 120 * (1 - Math.exp(-t / 9)) : 60 + 38 * (1 - Math.exp(-t / 14));
+    dump ? 74 + 120 * (1 - Math.exp(-t / 9)) : 74 + 30 * (1 - Math.exp(-t / 14));
 
   const yMax = 200;
   const samples = Array.from({ length: 61 }, (_, i) => i);
@@ -260,8 +260,9 @@ const COOLING_TAKES = 12;
 
 export function RunawayClock() {
   const [temp, setTemp] = useState(96);
-  // Rule of thumb: the reaction goes twice as fast for every 10 °C.
-  const minutesLeft = 64 * Math.pow(2, -(temp - 90) / 10);
+  // Anchored to the story: about 24 minutes at 101°C, and the time you have
+  // halves for every 10°C on top of that.
+  const minutesLeft = 24 * Math.pow(2, -(temp - 101) / 10);
   const tooLate = minutesLeft < COOLING_TAKES;
   const scale = 70;
 
@@ -282,9 +283,9 @@ export function RunawayClock() {
           </>
         ) : (
           <>
-            Every 10°C hotter halves the time you have. At 90°C an hour feels
-            like plenty; by 120°C the same batch gives you eight minutes. The
-            decision has to be made while everything still looks fine.
+            Every 10°C hotter halves the time you have. At 101°C you have about
+            24 minutes; by 121°C the same batch gives you six. The decision has
+            to be made while everything still looks fine.
           </>
         )
       }

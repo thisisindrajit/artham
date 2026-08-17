@@ -1,4 +1,5 @@
 import type { Mood, SceneVisual, SceneVisualKind } from "@/lib/story";
+import { storyEmoji } from "@/lib/story/emoji";
 import { capMarker } from "@/lib/ui";
 
 export function StoryStage({
@@ -30,13 +31,16 @@ export function StoryStage({
         preview ? "border-accent/45" : "border-white/15"
       } lg:h-auto lg:aspect-[4/5] lg:shrink-0`}
     >
-      <StageGraphic kind={visual.kind} mood={mood} />
+      <StageGraphic kind={visual.kind} mood={mood} status={visual.status} />
 
       <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-5">
         <span className="flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[12px] leading-none tracking-[0.14em] text-ink/70 uppercase backdrop-blur-md">
           <span
             className={`${capMarker} story-live-dot size-1.5 rounded-full bg-accent`}
           />
+          <span aria-hidden className="text-[13px] tracking-normal">
+            {storyEmoji(visual.kind)}
+          </span>
           {label}
         </span>
         <span className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-right text-[12px] leading-none text-ink/60 backdrop-blur-md">
@@ -111,7 +115,16 @@ const DAWN: SceneVisualKind[] = [
  * Temporary scene art. It already reacts to story state, so a future image can
  * replace the background without changing the stage UI around it.
  */
-function StageGraphic({ kind, mood }: { kind: SceneVisualKind; mood: Mood }) {
+function StageGraphic({
+  kind,
+  mood,
+  status,
+}: {
+  kind: SceneVisualKind;
+  mood: Mood;
+  /** The scene's own status line. Art that shows a reading must agree with it. */
+  status: string;
+}) {
   const isDawn = DAWN.includes(kind);
   const isStorm = kind === "storm";
   const family = FAMILY[kind];
@@ -178,7 +191,7 @@ function StageGraphic({ kind, mood }: { kind: SceneVisualKind; mood: Mood }) {
       {isDawn && <circle cx="398" cy="165" r="28" fill="rgb(var(--accent-rgb) / .62)" />}
 
       {family === "bridge" && <BridgeArt kind={kind} mood={mood} />}
-      {family === "reactor" && <ReactorArt kind={kind} mood={mood} />}
+      {family === "reactor" && <ReactorArt kind={kind} mood={mood} status={status} />}
       {family === "city" && <CityArt kind={kind} mood={mood} />}
       {family === "lab" && <LabArt kind={kind} mood={mood} />}
       {family === "troy" && <TroyArt kind={kind} mood={mood} />}
@@ -346,11 +359,26 @@ function BridgeArt({ kind, mood }: { kind: SceneVisualKind; mood: Mood }) {
 
 /* -------------------- reactor -------------------- */
 
-function ReactorArt({ kind, mood }: { kind: SceneVisualKind; mood: Mood }) {
+function ReactorArt({
+  kind,
+  mood,
+  status,
+}: {
+  kind: SceneVisualKind;
+  mood: Mood;
+  status: string;
+}) {
   const hot = kind === "reaction" || mood === "alarm";
   const cooling = kind === "cooling";
   const venting = kind === "vent";
   const liquid = hot ? "rgba(179,38,30,.5)" : "rgb(var(--accent-rgb) / .28)";
+  /**
+   * The gauge is the number the whole story argues about, so it may never
+   * disagree with the status chip above it. If the scene states a temperature,
+   * that is the reading. The fallbacks only cover scenes that state none.
+   */
+  const stated = /(\d{2,3})\s?°?C\b/.exec(status)?.[1];
+  const core = stated ?? (hot ? "103" : cooling ? "88" : "96");
 
   return (
     <>
@@ -521,7 +549,7 @@ function ReactorArt({ kind, mood }: { kind: SceneVisualKind; mood: Mood }) {
           fontSize="20"
           className={hot ? "story-scan" : ""}
         >
-          {hot ? "148°" : cooling ? "96°" : "82°"}
+          {core}°
         </text>
       </g>
     </>
