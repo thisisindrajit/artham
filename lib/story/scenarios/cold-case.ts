@@ -144,7 +144,7 @@ export const coldCase: Scenario = {
           detail: "A profile is a list. The length of that list is the whole story.",
           correct: true,
           outcome:
-            "Ray stops in the doorway. Joon scrolls back up the report, and the room goes quiet as the number comes into view. Amara sits down slowly. “Say that out loud,” she tells him.",
+            "Ray stops in the doorway. Joon finds the marker count, and the room goes quiet. Amara sits down. “Say that number out loud,” she tells him.",
           approach: "measure_first",
           next: "b3",
         },
@@ -200,8 +200,7 @@ export const coldCase: Scenario = {
       },
       type: "narrative",
       text: [
-        "Joon scrolls to the bottom of the report and goes quiet.",
-        "“Six,” he says. “We only got six markers. The other ten spots came back empty — eleven years in a paper bag broke the sample down.”",
+        "“Six,” Joon says. “We only got six markers. The other ten spots came back empty — eleven years in a paper bag broke the sample down.”",
         "A full profile is sixteen. Six is a fragment.",
         "Amara turns to Ray. “So what we have is everyone in the country who happens to share six numbers with our glove. And we just asked three hundred thousand of them.”",
         "Ray's jaw sets. “It came back with one name.”",
@@ -296,6 +295,7 @@ export const coldCase: Scenario = {
       },
       type: "choice",
       text: [
+        "The slider showed what a strong profile would need. But the real glove still has only six markers. Joon prints the result for those six: one in eighteen thousand.",
         "Ray has the certificate in his hand. “One in eighteen thousand. That is what your own lab wrote. One in eighteen thousand, and you want me to let him walk?”",
         "He is not wrong about the number. Have a go at the model before you answer him.",
       ],

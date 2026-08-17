@@ -22,7 +22,7 @@ export const runawayReactor: Scenario = {
     concept: "Thermal runaway",
     field: "Chemistry \u2014 reaction kinetics",
     inOneLine:
-      "Some reactions make heat, and heat makes them go faster, which makes more heat. Heat production climbs by multiplying; cooling only climbs in proportion to how much colder the jacket is than the contents. Past the point where those two curves cross, no cooling system is big enough.",
+      "Some reactions make heat, and heat makes them go faster, which makes more heat. Heat production speeds up as it goes; cooling only grows as fast as the gap between the jacket and the contents. Once heat production overtakes cooling, no cooling system is big enough to catch up.",
     rule:
       "When something feeds itself, fighting the symptom loses on a long enough timeline. You have to cut the loop: remove the fuel, or dilute what is left. And act while it still looks manageable \u2014 the window shuts faster than the number climbs.",
     elsewhere: [
@@ -409,7 +409,7 @@ export const runawayReactor: Scenario = {
           detail: "Every 10°C halves the time we have to do anything.",
           correct: true,
           outcome:
-            "Marta does not argue. She has seen the same curve you have. “Four hundred thousand,” she says, and reaches for the feed isolator anyway. The batch is gone from this moment on.",
+            "Marta does not argue. She has seen the same curve you have. “Four hundred thousand,” she says, stepping back from the panel. “Your call — the batch is gone from this moment on, whatever we do next.”",
           approach: "seek_pattern",
           next: "k8",
         },

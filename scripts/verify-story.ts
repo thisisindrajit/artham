@@ -418,6 +418,20 @@ check("every scenario ships at least three hands-on simulations", () => {
   assert.equal(used.size, recognised.size, "a simulation kind is never shown");
 });
 
+check("every simulation is introduced before it appears", () => {
+  const setupCue =
+    /\b(model|simulation|below|play|drag|move|watch|look|follow|hold|test|try)\b/i;
+  for (const story of allScenarios) {
+    for (const scene of story.scenes) {
+      if (!scene.simulation) continue;
+      assert.ok(
+        "text" in scene && scene.text.some((line) => setupCue.test(line)),
+        `${story.id}/${scene.id}: ${scene.simulation} appears without a plain-language setup sentence`,
+      );
+    }
+  }
+});
+
 check("every scenario mixes decisions, tuning and ordering", () => {
   for (const story of allScenarios) {
     const kinds = story.scenes.map((s) => s.type);

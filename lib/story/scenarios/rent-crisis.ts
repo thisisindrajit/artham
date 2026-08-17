@@ -25,7 +25,7 @@ export const rentCrisis: Scenario = {
     inOneLine:
       "A rent cap changes the number on the contract. It does not change how many homes exist. When the price is held below the level that would clear the queue, more people want a home than there are homes \u2014 and the shortage gets rationed by waiting lists, luck and who you know instead of by price.",
     rule:
-      "A price is a signal, not the cause. Push the signal down and you also push down the reason anyone builds, so the shortage you were treating gets worse. Fix a shortage by changing the quantity; use price rules only to protect specific people while the quantity catches up.",
+      "A price is a signal, not the cause. Push the signal down and you also push down the reason anyone builds, so the shortage gets worse. Fix a shortage by adding homes, not by changing the price. Use price rules only to protect specific people while the building catches up.",
     elsewhere: [
       "Fuel price caps that end in queues at the pump rather than cheap fuel.",
       "Concert tickets priced below what fans will pay \u2014 they sell out in seconds and reappear on resale sites.",
@@ -371,7 +371,7 @@ export const rentCrisis: Scenario = {
       },
       type: "narrative",
       text: [
-        "You put one line on the whiteboard: 90,000 families, 70,000 homes.",
+        "Brandt's question is still sitting in the room. You do not have a bill yet — you have a whiteboard, and one line on it: 90,000 families, 70,000 homes.",
         "Every argument in the building has been about the $2,500. Not one has been about the 20,000.",
         "“The rent is a number the shortage produces,” you tell the room. “Argue with the number all you like. It'll keep producing it.”",
         "Karl Mercer, who builds about a third of what gets built in Halden, has been sitting at the back all morning. He finally speaks.",
@@ -396,7 +396,7 @@ export const rentCrisis: Scenario = {
       primer: {
         term: "Vacancy",
         plain:
-          "how many homes are standing empty, waiting for a tenant. Near zero, the tenant competes for the home. A few percent, and the home has to compete for the tenant \u2014 the price follows whichever way that runs.",
+          "how many homes are standing empty, waiting for a tenant. When almost nothing is empty, tenants compete for homes and prices rise. When a few percent sit empty, homes compete for tenants and prices fall.",
         like: "the last seat on a packed train versus a half-empty carriage.",
       },
       type: "choice",

@@ -99,7 +99,7 @@ export function MarkerMatch() {
 /* ------------------------------------------------------------------ */
 
 const STEPS = [
-  { id: "scene", label: "Scarf bagged at the scene", who: "Owner + attacker" },
+  { id: "scene", label: "Glove bagged at the scene", who: "Owner + attacker" },
   { id: "store", label: "Eleven years in the evidence store", who: "Owner + attacker" },
   { id: "bench", label: "Opened on the cutting bench", who: "Owner + attacker" },
   { id: "cut", label: "A square is cut out for testing", who: "Owner + attacker" },
@@ -115,7 +115,7 @@ export function ContaminationPath() {
   return (
     <SimFrame
       eyebrow="chain of custody"
-      hint="Follow one scarf through the lab. Watch who is on it."
+      hint="Follow one glove through the lab. Watch who is on it."
       badge={
         clean
           ? { text: "two people, start to finish", tone: "sage" }
@@ -125,12 +125,12 @@ export function ContaminationPath() {
         clean ? (
           <>
             A fresh blade, a wiped bench and a new pair of gloves for every
-            exhibit. Whatever comes off the plate was on the scarf.
+            exhibit. Whatever comes off the plate was on the glove.
           </>
         ) : (
           <>
             The same blade cut a reference sample an hour earlier. From the cut
-            onwards the scarf carries a profile that was never at the scene —
+            onwards the glove carries a profile that was never at the scene —
             and the machine cannot tell you <em>when</em> that profile arrived.
           </>
         )

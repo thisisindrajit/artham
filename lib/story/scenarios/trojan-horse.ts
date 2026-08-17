@@ -23,7 +23,7 @@ export const trojanHorse: Scenario = {
     concept: "Testing a story against evidence",
     field: "History \u2014 how we know things",
     inOneLine:
-      "A convincing account is not evidence of anything except that somebody wanted to convince you. Physical traces \u2014 ruts in sand, a warm fire pit, the weight of oak \u2014 have no motive, no audience and no reason to flatter you, so they are what you check a story against.",
+      "A convincing story only proves one thing: somebody wanted you to believe it. Physical traces \u2014 ruts in sand, a warm fire pit, the weight of oak \u2014 have no motive, no audience and no reason to flatter you, so they are what you check a story against.",
     rule:
       "Ask of every source: who benefits if I believe this? Then find something that could not have been arranged for your benefit, and see whether the two agree. The parts of a story that survive that test are the parts you can build on.",
     elsewhere: [
@@ -136,7 +136,7 @@ export const trojanHorse: Scenario = {
           detail: "Fire pits, tracks, rubbish. Things nobody bothered to arrange.",
           correct: true,
           outcome:
-            "You spend the morning in the empty camp with Selene, reading ash and postholes instead of poems. By noon you have a page of things the ground insists on, whatever anyone says happened here.",
+            "You spend the morning in the empty camp with Kalliope, reading ash and postholes instead of poems. By noon you have a page of things the ground insists on, whatever anyone says happened here.",
           approach: "measure_first",
           next: "t3",
         },
@@ -242,7 +242,7 @@ export const trojanHorse: Scenario = {
           detail: "Warm ash and keel marks do not want anything from you.",
           correct: true,
           outcome:
-            "Selene sets it up as two columns — what the singers say, what the sand shows. Half the claims survive contact with the second column. Half do not, and one of them is the part everybody knows.",
+            "Kalliope sets it up as two columns — what the singers say, what the sand shows. Half the claims survive contact with the second column. Half do not, and one of them is the part everybody knows.",
           approach: "measure_first",
           next: "t5",
         },

@@ -278,6 +278,7 @@ export const resonanceBridge: Scenario = {
       text: [
         "The deck bounces at its own rhythm, 1.20 times a second, and the gusts repeat at 1.20 too.",
         "The wind is not stronger. But each push lands at just the right time.",
+        "Try the model below. Push with the deck, then push against it, and watch what changes.",
       ],
       primer: {
         term: "Its own rhythm",
@@ -570,6 +571,7 @@ export const resonanceBridge: Scenario = {
       text: [
         "The storm fills a band of rhythms from 0.83 to 0.95. The weighted deck is trapped inside it.",
         "Rain hides the far tower. The movement is still rising. You have minutes.",
+        "Move the deck marker in the model below and find a safe gap before you choose.",
       ],
       prompt: "What now?",
       primer: {
@@ -637,15 +639,15 @@ export const resonanceBridge: Scenario = {
       visual: {
         kind: "dawn",
         title: "The rhythms split apart",
-        caption: "Deck at 1.20. Storm below 0.95. The gap is the fix.",
+        caption: "The two rhythms have pulled apart. The gap is the fix.",
         status: "06:40 · movement falling",
       },
       type: "narrative",
       text: [
-        "Tobi removes the weight in driving rain while the deck bucks under the crane.",
-        "At 6:40, the deck is back at 1.20. The storm stays below 0.95. The rhythms no longer meet.",
+        "Whatever you called in, the crew makes it real in the driving rain.",
+        "At 6:40, the two rhythms have pulled apart again. They no longer meet.",
         "The warning siren stops. The movement falls.",
-        "Nadia looks at you. “So the fix was undoing the fix?”",
+        "Nadia looks at you. “So that's twice tonight you've opened the gap — and never the same way twice.”",
         "“The real fix was the gap. The weight was only one way to make it.”",
       ],
       next: "s12b",

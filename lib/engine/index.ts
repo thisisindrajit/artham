@@ -195,6 +195,9 @@ function transition(state: PlayState, action: Action): StepResult {
         sceneId: scene.id,
         choice: option.label,
         correct: option.correct,
+        outcome: option.correct
+          ? option.outcome
+          : scene.consequences[option.id],
         attempt,
         approach: option.approach,
         at: Date.now(),
@@ -287,8 +290,14 @@ function transition(state: PlayState, action: Action): StepResult {
       const correct = isSliderCorrect(scene, value);
       const prior = state.commits[scene.id] ?? [];
       const values = [...prior, value];
+      const outcome = bandFor(scene, value);
 
-      notes.experiments.push({ sceneId: scene.id, value, correct });
+      notes.experiments.push({
+        sceneId: scene.id,
+        value,
+        correct,
+        outcome,
+      });
       if (!correct) {
         notes.mistakes.push({
           sceneId: scene.id,
@@ -309,7 +318,7 @@ function transition(state: PlayState, action: Action): StepResult {
         ...state,
         commits: { ...state.commits, [scene.id]: values },
         pending: {
-          text: bandFor(scene, value),
+          text: outcome,
           correct,
           nextSceneId: correct ? scene.next : scene.id,
         },
@@ -362,6 +371,7 @@ function transition(state: PlayState, action: Action): StepResult {
         sceneId: scene.id,
         choice: trail,
         correct,
+        outcome: correct ? scene.right : scene.wrong,
         attempt,
         at: Date.now(),
       });

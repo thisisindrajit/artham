@@ -10,7 +10,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Artham — your reasoning is the point",
+  title: "Artham — solve the story, see how you think",
   description:
     "Artham means reason. Step into a situation, work it out, and see your reasoning read back to you as a Thinking Profile.",
 };

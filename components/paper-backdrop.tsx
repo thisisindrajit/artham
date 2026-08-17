@@ -121,7 +121,7 @@ export function PaperBackdrop() {
         className="absolute inset-0 size-full"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -135,7 +135,7 @@ export function PaperBackdrop() {
             className={
               // Every third doodle borrows the subject colour so story pages
               // pick up a whisper of their own palette.
-              i % 3 === 0 ? "text-accent/12" : "text-ink/[0.06]"
+              i % 3 === 0 ? "text-accent/[0.075]" : "text-ink/[0.035]"
             }
           >
             <use

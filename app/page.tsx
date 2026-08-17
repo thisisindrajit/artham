@@ -23,17 +23,12 @@ export default function Home() {
             </p>
           </div>
           {/* pb reserves room for the wavy underline, which is painted outside
-              the h1's box and otherwise crowds the paragraph to ~12px. The
-              looser leading below `sm` is for the same reason: once the line
-              wraps, tight leading puts the wave into the next line's caps. */}
-          <h1 className="pb-1 text-[clamp(2.5rem,6.4vw,3.5rem)] leading-[1.28] font-light tracking-tight text-ink sm:pb-2 sm:leading-[1.06]">
-            The answer is the <span className="font-semibold">easy part</span>.
+              the h1's box and otherwise crowds the paragraph. */}
+          <h1 className="pb-1 text-[clamp(2.5rem,6.4vw,3.5rem)] leading-[1.28] font-light tracking-tight text-ink sm:pb-2 sm:leading-[1.2]">
+            Solve the <span className="font-semibold">story</span>.
             <br />
-            {/* skip-ink off: at this offset the wave crosses the descenders of
-                "g" and "p" and would otherwise break into disconnected
-                segments. */}
-            <span className="font-semibold underline decoration-wavy decoration-pop underline-offset-[10px] [text-decoration-skip-ink:none] sm:underline-offset-[12px]">
-              Your reasoning is the point.
+            <span className="font-semibold underline decoration-dotted decoration-pop [text-decoration-skip-ink:none] underline-offset-[8px]">
+              See how you think.
             </span>
           </h1>
           <p className="max-w-xl text-[16px] leading-relaxed text-ink/75 sm:text-[17px]">

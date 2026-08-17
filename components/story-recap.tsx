@@ -20,11 +20,18 @@ import { cardSoft } from "@/lib/ui";
 export function StoryRecap({
   scenario,
   state,
+  className = "",
 }: {
   scenario: Scenario;
   state: PlayState;
+  className?: string;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
+  const current = scenario.scenes.findIndex((scene) => scene.id === state.sceneId);
+  const progress = Math.max(
+    0,
+    Math.min(100, ((current + 1) / scenario.scenes.length) * 100),
+  );
 
   const entries = state.visited
     .map((sceneId) => {
@@ -33,7 +40,25 @@ export function StoryRecap({
       const decision = state.notes.decisions
         .filter((d) => d.sceneId === sceneId && d.correct)
         .at(-1);
-      return { id: sceneId, beat: scene.beat, act: scene.act, decision };
+      const experiment = state.notes.experiments
+        .filter((item) => item.sceneId === sceneId && item.correct)
+        .at(-1);
+      const reasoning = state.notes.reasoningSamples
+        .filter((item) => item.sceneId === sceneId)
+        .at(-1);
+      const corrected = state.notes.mistakes.some(
+        (item) => item.sceneId === sceneId && item.corrected,
+      );
+      return {
+        id: sceneId,
+        beat: scene.beat,
+        act: scene.act,
+        context: scene.visual.caption,
+        decision,
+        experiment,
+        reasoning,
+        corrected,
+      };
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
@@ -44,22 +69,93 @@ export function StoryRecap({
     });
   }, [entries.length]);
 
-  // One beat is not a story yet — the panel would only be noise.
-  if (entries.length < 2) return null;
+  if (state.phase !== "scene") {
+    return (
+      <aside
+        aria-label="Story brief"
+        className={`${cardSoft} rise flex flex-col rounded-2xl px-5 py-5 ${className}`}
+        style={{ animationDelay: "180ms" }}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
+          <p className="flex items-center gap-2 text-[11.5px] font-extrabold tracking-[0.15em] text-ink/65 uppercase">
+            <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+            Before you begin
+          </p>
+          <p className="text-[11.5px] font-medium text-faint">
+            {scenario.minutes} min · {scenario.difficulty}
+          </p>
+        </div>
+
+        <div className="mt-5">
+          <p className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/55 uppercase">
+            The situation
+          </p>
+          <p className="mt-2 text-[17px] leading-[1.45] font-semibold text-ink">
+            {scenario.intro.visual.caption}
+          </p>
+          <p className="mt-2 text-[13px] leading-[1.45] text-ink/60">
+            {scenario.intro.visual.status}
+          </p>
+        </div>
+
+        <dl className="mt-5 space-y-4 border-t border-line pt-5">
+          <div>
+            <dt className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/55 uppercase">
+              Your role
+            </dt>
+            <dd className="mt-1 text-[14px] leading-[1.45] text-ink/75">
+              You are the {scenario.intro.role}.
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/55 uppercase">
+              What you will learn
+            </dt>
+            <dd className="mt-1 text-[14px] leading-[1.5] text-ink/75">
+              {scenario.learningGoal}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-5 rounded-xl bg-accent/[0.07] px-3.5 py-3 text-[12.5px] leading-[1.5] text-ink/65">
+          As you play, this panel will remember the key clues, choices and tests
+          for you.
+        </p>
+      </aside>
+    );
+  }
 
   return (
     <aside
-      className={`${cardSoft} rise mt-6 rounded-2xl px-5 pt-5 pb-4 lg:flex lg:min-h-[7rem] lg:flex-1 lg:flex-col lg:overflow-hidden`}
+      aria-label="Story context and progress"
+      className={`${cardSoft} rise rounded-2xl px-5 pt-5 pb-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden ${className}`}
       style={{ animationDelay: "260ms" }}
     >
-      <p className="flex items-center gap-2 text-[12.5px] font-extrabold tracking-[0.16em] text-ink/70 uppercase">
+      <div className="border-b border-line pb-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/65 uppercase">
+            Chapter {entries.at(-1)?.act ?? 1} of 3
+          </p>
+          <p className="text-[11.5px] font-medium text-faint">
+            {current + 1} / {scenario.scenes.length}
+          </p>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/8">
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <p className="mt-4 flex items-center gap-2 text-[12.5px] font-extrabold tracking-[0.16em] text-ink/70 uppercase">
         <span className="mt-[1px] size-1.5 shrink-0 rounded-full bg-accent" />
-        The story so far
+        What has happened
       </p>
 
       <ol
         ref={listRef}
-        className="mt-4 max-h-56 space-y-3 overflow-y-auto pr-1 lg:max-h-none lg:min-h-0 lg:flex-1"
+        className="mt-4 max-h-64 space-y-4 overflow-y-auto pr-1 lg:max-h-none lg:min-h-0 lg:flex-1"
       >
         {entries.map((entry, i) => {
           const here = i === entries.length - 1;
@@ -82,15 +178,35 @@ export function StoryRecap({
                 <p
                   className={
                     here
-                      ? "text-[15.5px] leading-[1.45] font-extrabold text-ink italic"
-                      : "text-[15.5px] leading-[1.45] font-semibold text-ink/70"
+                      ? "text-[14.5px] leading-[1.4] font-extrabold text-ink italic"
+                      : "text-[14.5px] leading-[1.4] font-semibold text-ink/70"
                   }
                 >
                   {entry.beat}
                 </p>
+                <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">
+                  {entry.decision?.outcome ??
+                    entry.experiment?.outcome ??
+                    entry.context}
+                </p>
                 {entry.decision && (
-                  <p className="mt-0.5 line-clamp-2 text-[14px] leading-[1.45] text-ink/70 italic">
+                  <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
                     You chose: {entry.decision.choice}
+                  </p>
+                )}
+                {entry.experiment && (
+                  <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                    You tested: {entry.experiment.value}
+                  </p>
+                )}
+                {entry.reasoning && (
+                  <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                    You said: {entry.reasoning.answer}
+                  </p>
+                )}
+                {entry.corrected && (
+                  <p className="mt-1.5 text-[11.5px] font-semibold tracking-wide text-sage uppercase">
+                    You revised an earlier try
                   </p>
                 )}
               </div>

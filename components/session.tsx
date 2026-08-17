@@ -187,8 +187,8 @@ export function Session({ scenario }: { scenario: Scenario }) {
       <PaperBackdrop />
       <Rail scenario={scenario} state={state} />
 
-      <main className="relative mx-auto grid w-full max-w-7xl flex-1 items-start gap-8 px-6 py-10 lg:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.2fr)] lg:gap-12">
-        <div className="lg:sticky lg:top-6 lg:flex lg:max-h-[calc(100dvh-3rem)] lg:flex-col lg:self-start">
+      <main className="relative mx-auto grid w-full max-w-[1600px] flex-1 items-start gap-8 px-6 py-10 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.2fr)] xl:grid-cols-[minmax(280px,0.85fr)_minmax(440px,1.25fr)_minmax(240px,0.65fr)] xl:gap-6 2xl:gap-10">
+        <div className="order-1 lg:sticky lg:top-20 lg:col-start-1 lg:row-start-1 lg:self-start">
           <StoryStage
             key={`${state.phase}-${scene.id}-${state.pending?.correct ?? "open"}`}
             visual={
@@ -207,13 +207,10 @@ export function Session({ scenario }: { scenario: Scenario }) {
                 : null
             }
           />
-          {state.phase === "scene" && (
-            <StoryRecap scenario={scenario} state={state} />
-          )}
         </div>
 
         <section
-          className="story-sheet relative isolate mx-auto flex w-full max-w-2xl flex-col justify-center rounded-3xl border-[1.5px] border-ink/12 bg-white/95 p-6 shadow-[0_6px_0_rgba(23,23,23,0.08),0_28px_70px_rgba(23,23,23,0.11)] sm:p-8 lg:p-10"
+          className="story-sheet relative isolate order-3 mx-auto flex w-full max-w-2xl flex-col justify-center rounded-3xl border-[1.5px] border-ink/12 bg-white/95 p-6 shadow-[0_6px_0_rgba(23,23,23,0.08),0_28px_70px_rgba(23,23,23,0.11)] sm:p-8 lg:order-none lg:col-start-2 lg:row-start-1 lg:p-10"
         >
           {state.phase === "intro" && (
             <Intro scenario={scenario} onBegin={() => run({ type: "begin" })} />
@@ -291,10 +288,16 @@ export function Session({ scenario }: { scenario: Scenario }) {
             </>
           )}
         </section>
+
+        <StoryRecap
+          scenario={scenario}
+          state={state}
+          className="order-2 lg:order-none lg:col-start-1 lg:row-start-2 lg:mt-0 xl:sticky xl:top-20 xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100dvh-6rem)]"
+        />
       </main>
 
       <div className="pointer-events-none sticky bottom-0 z-10 pb-6">
-        <div className="mx-auto grid w-full max-w-7xl px-6 lg:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.2fr)] lg:gap-12">
+        <div className="mx-auto grid w-full max-w-[1600px] px-6 lg:grid-cols-[minmax(300px,0.85fr)_minmax(0,1.2fr)] xl:grid-cols-[minmax(280px,0.85fr)_minmax(440px,1.25fr)_minmax(240px,0.65fr)] xl:gap-6 2xl:gap-10">
           <div className="pointer-events-auto mx-auto w-full max-w-2xl lg:col-start-2">
             <PartnerCard
               message={partner}

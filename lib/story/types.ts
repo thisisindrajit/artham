@@ -365,13 +365,21 @@ export interface SessionNotes {
     sceneId: string;
     choice: string;
     correct: boolean;
+    /** The in-world result shown after this choice or ordered sequence. */
+    outcome?: string;
     attempt: number;
     approach?: ApproachTag;
     at: number;
   }[];
   reasoningSamples: { sceneId: string; question: string; answer: string }[];
   /** Every slider value the learner committed to, in order. */
-  experiments: { sceneId: string; value: number; correct: boolean }[];
+  experiments: {
+    sceneId: string;
+    value: number;
+    correct: boolean;
+    /** The authored feedback shown for this committed value. */
+    outcome?: string;
+  }[];
   hintsUsed: number;
   selfCorrections: number;
   helpRequests: number;
