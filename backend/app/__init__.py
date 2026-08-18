@@ -1,0 +1,1 @@
+"""Artham backend application."""

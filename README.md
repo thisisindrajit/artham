@@ -66,6 +66,13 @@ Then, from the repo root:
 npm run agent          # http://localhost:8080
 ```
 
+You can also inspect the observation agent with ADK's native developer tools:
+
+```bash
+cd agent
+.venv/bin/adk web artham_partner
+```
+
 Check it picked up your credentials:
 
 ```bash

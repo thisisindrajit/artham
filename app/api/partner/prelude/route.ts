@@ -1,6 +1,6 @@
 import { getScenario } from "@/lib/story";
 import { requestPrelude } from "@/lib/partner/client";
-import { scenarioContext } from "@/lib/partner/context";
+import { scenarioContext } from "@/utils/partner-context";
 
 export async function POST(request: Request) {
   const { scenarioId } = (await request.json()) as { scenarioId?: string };

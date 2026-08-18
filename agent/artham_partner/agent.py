@@ -1,0 +1,5 @@
+"""Google ADK CLI and deployment entry point."""
+
+from .agents import root_agent
+
+__all__ = ["root_agent"]

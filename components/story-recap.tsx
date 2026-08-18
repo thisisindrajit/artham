@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlayState } from "@/lib/engine";
 import type { Scenario } from "@/lib/story";
-import { storyEmoji } from "@/lib/story/emoji";
-import { cardSoft } from "@/lib/ui";
-
-/** How many recent beats a phone shows before folding the rest away. */
-const RECENT_ON_SMALL = 3;
+import { RECENT_STORY_BEATS_ON_SMALL_SCREENS } from "@/constants/story";
+import { storyEmoji } from "@/utils/story-visual";
+import { cardSoft } from "@/constants/ui";
 
 
 /**
@@ -75,7 +73,10 @@ export function StoryRecap({
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
-  const olderOnSmall = Math.max(0, entries.length - RECENT_ON_SMALL);
+  const olderOnSmall = Math.max(
+    0,
+    entries.length - RECENT_STORY_BEATS_ON_SMALL_SCREENS,
+  );
 
   useEffect(() => {
     const list = listRef.current;
@@ -94,7 +95,7 @@ export function StoryRecap({
     return (
       <aside
         aria-label="Story brief"
-        className={`${cardSoft} rise flex flex-col rounded-2xl px-5 py-5 ${className}`}
+        className={`${cardSoft} animate-rise flex flex-col rounded-2xl px-5 py-5 motion-reduce:animate-none ${className}`}
         style={{ animationDelay: "180ms" }}
       >
         <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
@@ -152,7 +153,7 @@ export function StoryRecap({
   return (
     <aside
       aria-label="Story context and progress"
-      className={`${cardSoft} rise rounded-2xl px-5 pt-5 pb-4 lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden ${className}`}
+      className={`${cardSoft} animate-rise rounded-2xl px-5 pt-5 pb-4 motion-reduce:animate-none lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden ${className}`}
       style={{ animationDelay: "260ms" }}
     >
       <div className="border-b border-line pb-4">
@@ -196,7 +197,8 @@ export function StoryRecap({
           // Phones get the recent stretch only. Clipping a scroll box mid-card
           // is what made this panel look broken, so small screens simply show
           // fewer beats instead of half of one.
-          const foldedOnSmall = i < entries.length - RECENT_ON_SMALL;
+          const foldedOnSmall =
+            i < entries.length - RECENT_STORY_BEATS_ON_SMALL_SCREENS;
           const body = (
             <>
               <p

@@ -2,7 +2,7 @@ import { scenarios } from "@/lib/story";
 import { ScenarioPicker } from "@/components/scenario-picker";
 import { PaperBackdrop } from "@/components/paper-backdrop";
 import { ArthamMark } from "@/components/artham-mark";
-import { capMarker, sticker } from "@/lib/ui";
+import { sticker } from "@/constants/ui";
 
 export default function Home() {
   return (
@@ -11,16 +11,20 @@ export default function Home() {
       className="relative isolate flex min-h-dvh flex-col px-4 sm:px-6"
     >
       <PaperBackdrop />
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center py-12 sm:py-16 lg:py-20">
-        <div className="rise space-y-5 sm:space-y-6">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center py-12 sm:py-16 lg:py-20">
+        <div className="animate-rise max-w-3xl space-y-5 motion-reduce:animate-none sm:space-y-6">
           <div className="flex items-center gap-3 sm:gap-4">
             <ArthamMark
               size={36}
               priority
             />
-            <p className={`${sticker} rainbow-pill inline-flex items-center rounded-full px-3.5 py-2 text-[12px] leading-none font-semibold tracking-[0.05em] text-ink shadow-[0_3px_0_rgba(23,23,23,0.1)] sm:px-4 sm:text-[13px]`}>
-              Artham · stories for curious minds
-            </p>
+            <div
+              className={`${sticker} rounded-full bg-[linear-gradient(95deg,#00b8db_0%,#8e51ff_26%,#f6339a_50%,#00bc7d_74%,#fe9a00_100%)] p-0.5 shadow-[0_3px_0_rgba(23,23,23,0.1)]`}
+            >
+              <p className="rounded-full bg-white px-3.5 py-2 text-[12px] leading-none font-semibold tracking-[0.05em] text-ink sm:px-4 sm:text-[13px]">
+                Artham · stories for curious minds
+              </p>
+            </div>
           </div>
           {/* pb reserves room for the wavy underline, which is painted outside
               the h1's box and otherwise crowds the paragraph. */}
@@ -39,7 +43,7 @@ export default function Home() {
         </div>
 
         <div
-          className="rise mt-10 space-y-4 sm:mt-12 lg:mt-14"
+          className="animate-rise mt-10 space-y-4 motion-reduce:animate-none sm:mt-12 lg:mt-14"
           style={{ animationDelay: "180ms" }}
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -49,19 +53,12 @@ export default function Home() {
               <span aria-hidden>▸</span>
               Pick your situation
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white/70 px-3 py-1 text-[13px] font-medium tracking-[0.12em] text-muted uppercase">
-              <span
-                aria-hidden
-                className={`${capMarker} story-live-dot size-1.5 rounded-full bg-ink`}
-              />
-              {scenarios.length} playable
-            </span>
           </div>
           <ScenarioPicker scenarios={scenarios} />
         </div>
       </main>
 
-      <footer className="mx-auto w-full max-w-3xl pb-6 text-[13px] text-ink/70 sm:pb-8 sm:text-[14px]">
+      <footer className="mx-auto w-full max-w-6xl pb-6 text-[13px] text-ink/70 sm:pb-8 sm:text-[14px]">
         <span className="font-semibold text-ink">No grades.</span> Just your
         reasoning, read back to you.
       </footer>

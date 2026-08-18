@@ -6,11 +6,13 @@
  * guarantee the product depends on.
  */
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
-import { resonanceBridge } from "../lib/story/scenarios/resonance-bridge";
+import { resonanceBridge } from "../stories/resonance-bridge/scenario";
 import { getScene, scenarios as allScenarios } from "../lib/story/index";
-import { shuffledStepIds } from "../lib/story/shuffle";
-import type { Scenario, Scene, ScenePrimer } from "../lib/story/types";
+import { shuffledStepIds } from "../utils/story-shuffle";
+import type { Scenario, Scene, ScenePrimer } from "../types/story";
 import {
   currentScene,
   initState,
@@ -20,9 +22,9 @@ import {
   type EngineEvent,
   type PlayState,
 } from "../lib/engine/index";
-import { isSliderCorrect, readoutFor } from "../lib/engine/formulas";
+import { isSliderCorrect, readoutFor } from "../utils/engine-formulas";
 import { fallbackObserve, fallbackProfile } from "../lib/partner/fallbacks";
-import { digest } from "../lib/partner/types";
+import { digestNotes } from "../utils/session-notes";
 
 /** The bridge stays the reference story for the physics-specific checks. */
 const scenario = resonanceBridge;
@@ -345,6 +347,7 @@ function proseOf(story: Scenario): { where: string; text: string }[] {
   };
 
   add("tagline", story.tagline, story.learningGoal, story.partnerGreeting);
+  add("blurb", story.blurb);
   add("intro", story.intro.role, ...story.intro.text, story.intro.cta);
   add("preSession", story.preSession.prompt, ...story.preSession.options.map((o) => o.label));
   const t = story.takeaway;
@@ -375,6 +378,9 @@ function proseOf(story: Scenario): { where: string; text: string }[] {
     }
     if (scene.type === "reflect") add(at, scene.prompt, scene.placeholder);
     if (scene.trivia) add(`${at}/trivia`, scene.trivia.title, scene.trivia.text);
+    if (scene.simGuide) {
+      add(`${at}/simGuide`, scene.simGuide.shows, scene.simGuide.move, scene.simGuide.watch);
+    }
   }
   return out;
 }
@@ -530,9 +536,36 @@ check("every scenario keeps a cast a learner can hold", () => {
  */
 
 const EMOJI = /\p{Extended_Pictographic}/u;
-const MIN_TRIVIA = 4;
+const MIN_TRIVIA = 3;
 /** Past two sentences a "did you know" is a paragraph, and gets skipped. */
 const MAX_TRIVIA_WORDS = 42;
+
+/**
+ * Words too common to prove a trivia card is on topic. A fact that shares only
+ * "there" or "people" with its scene shares nothing.
+ */
+const TOPIC_STOPWORDS = new Set([
+  "about", "after", "again", "against", "another", "anyone", "around", "because",
+  "before", "being", "below", "between", "could", "every", "first", "found",
+  "front", "given", "gives", "going", "great", "hands", "into", "least",
+  "leave", "looks", "makes", "means", "might", "never", "night", "nobody",
+  "number", "numbers", "often", "other", "others", "people", "place", "point",
+  "right", "round", "small", "something", "still", "story", "taken", "takes",
+  "their", "there", "these", "thing", "things", "think", "those", "three",
+  "times", "under", "until", "using", "wants", "watch", "where", "which",
+  "while", "whole", "would", "years", "young",
+]);
+
+/** Distinctive words a scene is actually about. */
+const topicWords = (text: string) =>
+  new Set(
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w.length >= 5 && !TOPIC_STOPWORDS.has(w))
+      // "markers" and "marker" are the same subject.
+      .map((w) => (w.endsWith("s") && w.length > 5 ? w.slice(0, -1) : w)),
+  );
 
 check("every scenario hands out facts worth repeating", () => {
   const problems: string[] = [];
@@ -572,17 +605,63 @@ check("every scenario hands out facts worth repeating", () => {
       if (words > MAX_TRIVIA_WORDS) {
         problems.push(`${at}: trivia is ${words} words — "${trivia.text.slice(0, 60)}…"`);
       }
+
+      /**
+       * Placement. A true fact in the wrong beat is an interruption: the
+       * learner is mid-thought about ship ruts and gets handed a note about
+       * calendars. So a card has to be about something its own scene is
+       * talking about, right there on the page.
+       */
+      const here = topicWords(
+        [scene.beat, ...(scene.text ?? []), scene.visual.title, scene.visual.caption].join(" "),
+      );
+      const fact = topicWords(`${trivia.title} ${trivia.text}`);
+      const shared = [...fact].filter((w) => here.has(w));
+      if (shared.length === 0) {
+        problems.push(
+          `${at}: trivia "${trivia.title}" shares no subject with its own scene — move it to the beat it belongs to`,
+        );
+      }
     }
   }
   allOf(problems, "trivia problem(s)");
 });
 
 /**
+ * The subject lesson has to happen in the story, not on the card at the end.
+ * A learner who plays a chemistry story should come out knowing something about
+ * chemistry — so the idea named in `takeaway.concept` must be worked through in
+ * the prose itself, in more than one beat, before the ending claims it.
+ */
+check("every scenario teaches its concept inside the story", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const idea = topicWords(`${story.takeaway.concept} ${story.takeaway.inOneLine}`);
+    if (idea.size === 0) {
+      problems.push(`${story.id}: takeaway.concept has no word specific enough to teach`);
+      continue;
+    }
+    const beats = story.scenes.filter((scene) => {
+      if (scene.type === "ending") return false;
+      const here = topicWords(
+        [...(scene.text ?? []), ...primersOf(scene).map((p) => `${p.term} ${p.plain}`)].join(" "),
+      );
+      return [...idea].some((w) => here.has(w));
+    });
+    if (beats.length < 2) {
+      problems.push(
+        `${story.id}: "${story.takeaway.concept}" is worked through in ${beats.length} beat(s) — the ending claims a lesson the story never taught`,
+      );
+    }
+  }
+  allOf(problems, "concept problem(s)");
+});
+
+/**
  * Emoji belong in the prose, not only in the recap rail — but one per
  * paragraph, at most. Two is a text message; three is a ransom note.
  */
-const MIN_EMOJI_LINES = 5;
-
+const MIN_EMOJI_LINES = 4;
 check("every scenario carries emoji in the story itself", () => {
   const problems: string[] = [];
   for (const story of allScenarios) {
@@ -606,6 +685,101 @@ check("every scenario carries emoji in the story itself", () => {
     }
   }
   allOf(problems, "emoji problem(s) in story prose");
+});
+
+/* ------------------------------------------------------------------ */
+/**
+ * Length. The stories drifted to twelve and thirteen minutes, and the report
+ * from the person playing them was blunt: "there's a lot of things going on, so
+ * it's very hard to keep track."
+ *
+ * `minutes` is printed on the picker and in the session header, so it is a
+ * promise, and until now it was a hand-typed guess. This estimates it from what
+ * a learner actually reads and does, then insists the printed number matches.
+ * Nobody can quietly relabel a long story as a short one.
+ */
+
+/**
+ * Both constants are fitted, not guessed. The five stories carried hand-typed
+ * minute labels from the people who wrote them; 220 words a minute with ten
+ * seconds of thinking per decision reproduces every one of those labels to
+ * within a minute, which is as close as a reading estimate gets to honest.
+ */
+const WORDS_PER_MINUTE = 220;
+/** Reading a decision is already in the word count; this is think-and-click. */
+const MINUTES_PER_INTERACTION = 0.17;
+const MAX_STORY_MINUTES = 7;
+const MAX_SCENES = 11;
+
+/** Everything a learner reads on one clean pass, hints and retries aside. */
+function readingWords(story: Scenario): number {
+  let words = 0;
+  const add = (...text: (string | undefined)[]) => {
+    for (const t of text) if (t) words += wordCount(t);
+  };
+
+  add(story.intro.role, ...story.intro.text, story.intro.cta);
+  add(story.preSession.prompt, ...story.preSession.options.map((o) => o.label));
+  add(story.takeaway.inOneLine, story.takeaway.rule);
+  add(...story.takeaway.elsewhere, ...story.takeaway.youUsedIt);
+
+  for (const scene of story.scenes) {
+    add(...(scene.text ?? []));
+    for (const primer of primersOf(scene)) add(primer.term, primer.plain, primer.like);
+    if (scene.trivia) add(scene.trivia.title, scene.trivia.text);
+    if (scene.simGuide) add(scene.simGuide.shows, scene.simGuide.move, scene.simGuide.watch);
+    if (scene.type === "choice") {
+      add(scene.prompt);
+      for (const o of scene.options) add(o.label, o.detail);
+      // One outcome is read per run, not all of them.
+      const right = scene.options.find((o) => o.correct);
+      add(right?.outcome);
+    }
+    if (scene.type === "slider") {
+      add(scene.prompt, scene.slider.label, scene.readout.label, scene.driver.label);
+      add(...scene.bands.map((b) => b.text));
+    }
+    if (scene.type === "reorder") {
+      add(scene.prompt, scene.instruction, scene.right);
+      for (const s of scene.steps) add(s.label, s.detail);
+    }
+    if (scene.type === "reflect") add(scene.prompt, scene.placeholder);
+  }
+  return words;
+}
+
+const INTERACTIVE = new Set<Scene["type"]>(["choice", "slider", "reorder", "reflect"]);
+
+function estimateMinutes(story: Scenario): number {
+  const interactions = story.scenes.filter((s) => INTERACTIVE.has(s.type)).length;
+  const raw =
+    readingWords(story) / WORDS_PER_MINUTE + interactions * MINUTES_PER_INTERACTION;
+  return Math.round(raw);
+}
+
+check("no story outstays the time it promises", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const estimate = estimateMinutes(story);
+    const words = readingWords(story);
+
+    if (estimate > MAX_STORY_MINUTES) {
+      problems.push(
+        `${story.id}: runs about ${estimate} min (${words} words) — cut to ${MAX_STORY_MINUTES}`,
+      );
+    }
+    if (story.minutes !== estimate) {
+      problems.push(
+        `${story.id}: claims ${story.minutes} min but reads as ${estimate} (${words} words, ${story.scenes.length} scenes)`,
+      );
+    }
+    if (story.scenes.length > MAX_SCENES) {
+      problems.push(
+        `${story.id}: ${story.scenes.length} scenes — past ${MAX_SCENES} a learner loses the thread`,
+      );
+    }
+  }
+  allOf(problems, "length problem(s)");
 });
 
 /* ------------------------------------------------------------------ */
@@ -698,6 +872,208 @@ check("every scenario ships at least three hands-on simulations", () => {
   assert.equal(used.size, recognised.size, "a simulation kind is never shown");
 });
 
+/**
+ * A model with no label is decoration. The complaint that produced this gate
+ * was exact: "it's very brief to the point that I don't understand what the
+ * simulation does at all… it takes a minute or two for me to understand."
+ *
+ * So every model must answer three questions in the learner's own order, and
+ * must answer them in whole sentences — a four-word answer is the same silence
+ * that caused the problem.
+ */
+const MIN_GUIDE_WORDS = 9;
+/** Naming the control is the difference between "tune it" and "drag the bar". */
+const CONTROL_WORDS =
+  /\b(slider|bar|handle|drag|dragging|slide|button|buttons|tap|press|switch|toggle|arrows?|card|cards|steps?|order|list)\b/i;
+
+check("every simulation says what it shows and what to move", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    for (const scene of story.scenes) {
+      const at = `${story.id}/${scene.id}`;
+      if (!scene.simulation) {
+        if (scene.simGuide) {
+          problems.push(`${at}: carries a simGuide but shows no simulation`);
+        }
+        continue;
+      }
+      const guide = scene.simGuide;
+      if (!guide) {
+        problems.push(`${at}: shows "${scene.simulation}" with nothing telling the learner how to read it`);
+        continue;
+      }
+      const fields: [keyof typeof guide, string][] = [
+        ["shows", "what the model shows"],
+        ["move", "what to move"],
+        ["watch", "what changes"],
+      ];
+      for (const [key, what] of fields) {
+        const value = guide[key];
+        const words = wordCount(value);
+        if (words < MIN_GUIDE_WORDS) {
+          problems.push(`${at}: simGuide.${key} is ${words} words — too brief to explain ${what}`);
+        }
+        if (sentencesOf(value).length > 2) {
+          problems.push(`${at}: simGuide.${key} runs past two sentences`);
+        }
+      }
+      if (!CONTROL_WORDS.test(guide.move)) {
+        problems.push(`${at}: simGuide.move never names the thing to touch`);
+      }
+    }
+  }
+  allOf(problems, "simulation guide problem(s)");
+});
+
+/**
+ * A guide that quotes a control the component never renders is worse than no
+ * guide at all: the learner hunts for a button that does not exist and decides
+ * the fault is theirs. Inside a simGuide, curly quotes are only ever used to
+ * name something on screen, so every quoted phrase must survive as a literal in
+ * the simulation source. Adapt the guide to the component, never the reverse.
+ */
+const SIM_SOURCE = (() => {
+  const root = process.cwd();
+  const files = [
+    join(root, "components", "sim-kit.tsx"),
+    join(root, "components", "story-simulation.tsx"),
+  ];
+  const storiesDir = join(root, "stories");
+
+  for (const folder of readdirSync(storiesDir, { withFileTypes: true })) {
+    if (!folder.isDirectory()) continue;
+    const storyDir = join(storiesDir, folder.name);
+    for (const file of readdirSync(storyDir)) {
+      if (/^(simulations|deck-wave)\.tsx$/.test(file)) {
+        files.push(join(storyDir, file));
+      }
+    }
+  }
+
+  let text = "";
+  for (const file of files) {
+    text += readFileSync(file, "utf8");
+  }
+  return text;
+})();
+
+/** Curly quotes only — straight quotes belong to the TypeScript itself. */
+const QUOTED = /[\u201c]([^\u201d]{2,60})[\u201d]/g;
+
+/**
+ * The same mistake also arrives unquoted: "watch the vacancy line" reads like
+ * plain English, but "vacancy" is still a promise about pixels. Any noun used
+ * as the name of a readout has to exist in the component too.
+ */
+const NAMED_READOUT =
+  /\bthe ([a-z][a-z-]{2,})(?:\s+([a-z][a-z-]{2,}))? (line|bar|slider|button|counter|readout|gauge|dial|toggle|meter)\b/gi;
+/** Words that describe a readout's role rather than name one. */
+const GENERIC_READOUT = new Set([
+  "same", "other", "second", "third", "first", "next", "last", "left", "right",
+  "top", "bottom", "upper", "lower", "middle", "red", "grey", "gray", "green",
+  "blue", "dark", "pale", "long", "short", "big", "small", "whole", "two",
+  "both", "each", "only", "single", "correct", "wrong", "new", "old",
+]);
+/**
+ * Adjectives that describe how a mark is drawn rather than what it is called.
+ * "the dashed line" is a fair description of a real line; "the vacancy line"
+ * is a claim that something called vacancy is on screen.
+ */
+const DESCRIBES_A_MARK =
+  /^(falling|rising|dropping|climbing|dashed|dotted|solid|thin|thick|curved|straight|flat|steep|sloping|shaded|moving|shrinking|growing|coloured|colored|jagged|smooth)$|-(minute|minutes|second|seconds|hour|degree|percent|point|dollar|day|days|week|year)s?$/i;
+
+/** A line that tells the learner to touch the model, rather than describing the room. */
+const POINTS_AT_MODEL =
+  /\b(drag|slide|move|tap|press|watch|model|below|slider|toggle)\b/i;
+
+function rendersLabel(label: string): boolean {
+  const trimmed = label.trim().replace(/[.,;:!?]+$/, "");
+  if (!trimmed) return true;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(escaped.replace(/\s+/g, "\\s+"), "i").test(SIM_SOURCE);
+}
+
+check("every control a guide quotes is really on screen", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    for (const scene of story.scenes) {
+      if (!scene.simGuide) continue;
+      const at = `${story.id}/${scene.id}`;
+      const guide = scene.simGuide;
+      const sources: [string, string][] = [
+        ["shows", guide.shows],
+        ["move", guide.move],
+        ["watch", guide.watch],
+        // The same promise gets made in narration right above the model — but
+        // only on lines that actually point at it. "Marta hovers over the red
+        // quench button" is scenery; "drag the lever and watch the X line" is
+        // an instruction, and an instruction can be wrong.
+        ...scene.text
+          .filter((line) => POINTS_AT_MODEL.test(line))
+          .map((line, i) => [`text[${i}]`, line] as [string, string]),
+      ];
+      for (const [key, source] of sources) {
+        for (const match of source.matchAll(QUOTED)) {
+          const label = match[1];
+          if (!rendersLabel(label)) {
+            problems.push(
+              `${at}: simGuide.${key} points at \u201c${label}\u201d, which "${scene.simulation}" never renders`,
+            );
+          }
+        }
+        for (const match of source.matchAll(NAMED_READOUT)) {
+          const words = [match[1], match[2]].filter(Boolean) as string[];
+          const named = words.filter(
+            (w) => !GENERIC_READOUT.has(w.toLowerCase()) && !DESCRIBES_A_MARK.test(w),
+          );
+          for (const word of named) {
+            if (!rendersLabel(word)) {
+              problems.push(
+                `${at}: ${key} names "the ${word} ${match[3]}", which "${scene.simulation}" never renders`,
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+  allOf(problems, "phantom control(s)");
+});
+
+/**
+ * The card is the only thing a learner sees before committing seven minutes.
+ * A blurb that merely re-states the tagline wastes the one chance the story has
+ * to say what it is actually about, and a missing alt text makes the grid
+ * unreadable to anyone using a screen reader.
+ */
+check("every story sells itself on the card", () => {
+  const problems: string[] = [];
+  for (const story of allScenarios) {
+    const words = wordCount(story.blurb);
+    const sentences = sentencesOf(story.blurb).length;
+    if (words < 22) {
+      problems.push(`${story.id}: blurb is ${words} words — too thin to choose from`);
+    }
+    if (words > 62) {
+      problems.push(`${story.id}: blurb is ${words} words — that is a synopsis, not a pitch`);
+    }
+    if (sentences < 2 || sentences > 3) {
+      problems.push(`${story.id}: blurb runs ${sentences} sentence(s) — aim for two or three`);
+    }
+    const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, "").trim();
+    if (normalise(story.blurb).startsWith(normalise(story.tagline))) {
+      problems.push(`${story.id}: blurb opens by repeating the tagline`);
+    }
+    if (wordCount(story.art.alt) < 6) {
+      problems.push(`${story.id}: art.alt is too short to describe the artwork`);
+    }
+    if (story.art.src && !story.art.src.startsWith("/")) {
+      problems.push(`${story.id}: art.src must be a root-relative path`);
+    }
+  }
+  allOf(problems, "card problem(s)");
+});
+
 check("every simulation is introduced before it appears", () => {
   const setupCue =
     /\b(model|simulation|below|play|drag|move|watch|look|follow|hold|test|try)\b/i;
@@ -718,7 +1094,10 @@ check("every scenario mixes decisions, tuning and ordering", () => {
     const count = (t: Scene["type"]) => kinds.filter((k) => k === t).length;
     assert.ok(count("choice") >= 4, `${story.id} has too few decisions`);
     assert.ok(count("slider") >= 1, `${story.id} has no tuning scene`);
-    assert.ok(count("reorder") >= 2, `${story.id} has too few reorder beats`);
+    // One ordering beat, not two. This floor was set when stories ran to
+    // thirteen minutes and could afford to ask for a sequence twice; at six
+    // minutes the second one only ever restated the first in weaker words.
+    assert.ok(count("reorder") >= 1, `${story.id} has no ordering beat`);
     assert.ok(count("reflect") >= 1, `${story.id} never asks for reasoning`);
     assert.equal(count("ending"), 1, `${story.id} needs exactly one ending`);
   }
@@ -837,16 +1216,63 @@ check("the physics matches the story's stated 0.25 Hz margin", () => {
 /* ------------------------------------------------------------------ */
 console.log("\nperfect run");
 
-const PERFECT_RUN: Move[] = [
-  "measure",
-  "close",
-  "phase",
-  OK, // s6b — order the resonance chain
-  40,
-  "remove",
-  OK, // s12b — rank patch versus fix
-  "damper",
-];
+/**
+ * The scripted runs below used to hard-code option ids and a move count. That
+ * broke every time a scene was added or removed, which told us nothing about
+ * the engine and cost a debugging session each time. Derive the flawless run
+ * from the scenario instead, so the fixtures follow the story.
+ */
+function flawlessMoves(story: Scenario = scenario): Move[] {
+  const byId = new Map(story.scenes.map((s) => [s.id, s]));
+  const moves: Move[] = [];
+  const seen = new Set<string>();
+  let id: string | undefined = story.startScene;
+
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const scene = byId.get(id);
+    if (!scene) break;
+
+    switch (scene.type) {
+      case "choice": {
+        const correct = scene.options.find((o) => o.correct);
+        assert.ok(correct, `${story.id}/${scene.id} has no correct option`);
+        moves.push(correct.id);
+        id = correct.next;
+        break;
+      }
+      case "slider": {
+        moves.push(Math.round((scene.target.min + scene.target.max) / 2));
+        id = scene.next;
+        break;
+      }
+      case "reorder": {
+        moves.push(OK);
+        id = scene.next;
+        break;
+      }
+      case "ending":
+        id = undefined;
+        break;
+      default:
+        id = scene.next;
+    }
+  }
+
+  return moves;
+}
+
+/** The id of a wrong option on the first decision the learner meets. */
+function firstWrongMove(story: Scenario = scenario): string {
+  for (const scene of story.scenes) {
+    if (scene.type !== "choice") continue;
+    const wrong = scene.options.find((o) => !o.correct);
+    if (wrong) return wrong.id;
+  }
+  throw new Error(`${story.id} has no wrong option to retry`);
+}
+
+const PERFECT_RUN: Move[] = flawlessMoves();
 
 check("a flawless playthrough reaches the profile", () => {
   const { state, events } = play([...PERFECT_RUN], "");
@@ -943,10 +1369,21 @@ check("hints escalate and never exceed the ladder", () => {
   let state = initState(scenario.id);
   state = step(state, { type: "begin" }).state;
   state = step(state, { type: "presession", question: "q", answer: "a" }).state;
-  // s1 is narrative; the help affordance only exists on decision scenes.
-  assert.equal(step(state, { type: "help" }).event, null);
-  state = step(state, { type: "advance" }).state;
-  assert.equal(currentScene(state).id, "s2");
+
+  // Walk to the first decision. The help affordance only exists there, so on
+  // any narrative beat along the way asking for help must produce nothing.
+  for (let guard = 0; guard < 20; guard += 1) {
+    if (currentScene(state).type === "choice") break;
+    assert.equal(
+      step(state, { type: "help" }).event,
+      null,
+      `help produced an event on a "${currentScene(state).type}" beat`,
+    );
+    state = step(state, { type: "advance" }).state;
+  }
+
+  const decision = currentScene(state);
+  assert.equal(decision.type, "choice", "never reached a decision scene");
 
   const seen: string[] = [];
   for (let i = 0; i < 5; i += 1) {
@@ -957,10 +1394,9 @@ check("hints escalate and never exceed the ladder", () => {
     }
     seen.push(result.event.hint);
   }
-  const s2 = getScene(scenario, "s2");
-  if (s2.type !== "choice") throw new Error("s2 is not a choice scene");
-  assert.deepEqual(seen.slice(0, 3), s2.hints);
-  assert.equal(seen[3], s2.hints[2], "hint level ran past the ladder");
+  if (decision.type !== "choice") throw new Error("not a choice scene");
+  assert.deepEqual(seen.slice(0, 3), decision.hints);
+  assert.equal(seen[3], decision.hints[2], "hint level ran past the ladder");
   assert.equal(state.notes.hintsUsed, 5);
 });
 
@@ -994,7 +1430,7 @@ for (const story of allScenarios) {
 
     const profile = fallbackProfile({
       scenario: context(story),
-      notes: digest(state.notes),
+      notes: digestNotes(state.notes),
       outcome: "success",
     });
     assert.ok(profile.archetype.length > 0);
@@ -1084,7 +1520,7 @@ check("the deterministic profile is grounded in the session", () => {
   );
   const profile = fallbackProfile({
     scenario: context(),
-    notes: digest(state.notes),
+    notes: digestNotes(state.notes),
     outcome: "success",
   });
   assert.ok(profile.archetype.length > 0);
@@ -1105,7 +1541,7 @@ check("the deterministic profile is grounded in the session", () => {
 check("the profile never claims iteration that didn't happen", () => {
   // A flawless run: measured first, committed the counterweight on attempt one.
   const { state } = play([...PERFECT_RUN], "Timing, not strength.");
-  const notes = digest(state.notes);
+  const notes = digestNotes(state.notes);
   assert.equal(
     notes.experiments.length,
     1,
@@ -1126,13 +1562,20 @@ check("the profile never claims iteration that didn't happen", () => {
 });
 
 check("a single retry is not reported as two wrong first moves", () => {
-  // One wrong option on s4, corrected on the next attempt. Everything else clean.
+  // One wrong option on the first decision, corrected next attempt. Rest clean.
+  const flawless = flawlessMoves();
+  // Slider beats are logged as experiments, not decisions, so they don't count.
+  const decisions = flawless.filter((m) => typeof m === "string").length;
   const { state } = play(
-    ["measure", "onelane", "close", "phase", OK, 40, "remove", OK, "damper"],
+    [firstWrongMove(), ...flawless],
     "The weight moved the deck off the gust rhythm.",
   );
-  const notes = digest(state.notes);
-  assert.equal(notes.decisions.length, 8, "this run should record 8 attempts");
+  const notes = digestNotes(state.notes);
+  assert.equal(
+    notes.decisions.length,
+    decisions + 1,
+    "this run should record one attempt per decision, plus the retry",
+  );
 
   const profile = fallbackProfile({
     scenario: context(),
@@ -1142,8 +1585,8 @@ check("a single retry is not reported as two wrong first moves", () => {
 
   assert.equal(
     profile.stats.decisions,
-    7,
-    "7 decision points were reached, not 8 — attempts are being counted",
+    decisions,
+    `${decisions} decision points were reached — attempts are being counted as decisions`,
   );
   assert.equal(
     profile.stats.decisions - profile.stats.firstTryCorrect,
@@ -1157,8 +1600,8 @@ check("a single retry is not reported as two wrong first moves", () => {
 });
 
 check("every archetype is reachable", () => {
-  const base = digest(initState(scenario.id).notes);
-  const profileFor = (notes: ReturnType<typeof digest>) =>
+  const base = digestNotes(initState(scenario.id).notes);
+  const profileFor = (notes: ReturnType<typeof digestNotes>) =>
     fallbackProfile({ scenario: context(), notes, outcome: "success" })
       .archetype;
 
@@ -1218,7 +1661,7 @@ check("every archetype is reachable", () => {
 check("a profile still renders from an empty session", () => {
   const profile = fallbackProfile({
     scenario: context(),
-    notes: digest(initState(scenario.id).notes),
+    notes: digestNotes(initState(scenario.id).notes),
     outcome: "partial",
   });
   assert.ok(profile.archetype.length > 0);

@@ -68,19 +68,24 @@ async def _run(
         app_name=APP_NAME, user_id=USER_ID, session_id=session_id
     )
 
-    message = types.Content(
-        role="user",
-        parts=[types.Part(text=payload.model_dump_json(exclude_none=True))],
-    )
+    try:
+        message = types.Content(
+            role="user",
+            parts=[types.Part(text=payload.model_dump_json(exclude_none=True))],
+        )
 
-    final_text: str | None = None
-    async for event in _runner_for(agent).run_async(
-        user_id=USER_ID, session_id=session_id, new_message=message
-    ):
-        if event.is_final_response() and event.content and event.content.parts:
-            final_text = "".join(
-                part.text for part in event.content.parts if part.text
-            )
+        final_text: str | None = None
+        async for event in _runner_for(agent).run_async(
+            user_id=USER_ID, session_id=session_id, new_message=message
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                final_text = "".join(
+                    part.text for part in event.content.parts if part.text
+                )
+    finally:
+        await _session_service.delete_session(
+            app_name=APP_NAME, user_id=USER_ID, session_id=session_id
+        )
 
     if not final_text:
         raise PartnerError(f"{agent.name} returned no content")

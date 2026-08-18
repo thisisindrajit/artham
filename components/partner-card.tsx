@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ObserveResponse } from "@/lib/partner/types";
-import { buttonPrimary, card } from "@/lib/ui";
+import type { ObserveResponse } from "@/types/partner";
+import {
+  buttonPrimary,
+  card,
+  PARTNER_ACTION_LABELS,
+  PARTNER_ACTION_TONES,
+} from "@/constants/ui";
 
 /**
  * Artham's voice. It appears inside the scene when it has something to say and
@@ -37,9 +42,9 @@ export function PartnerCard({
   if (thinking) {
     return (
       <div
-        className={`${card} border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] slide-up rounded-2xl px-5 py-4`}
+        className={`${card} animate-slide-up rounded-2xl border-[1.5px] px-5 py-4 shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}
       >
-        <span className="pulse-soft text-[15px] text-muted">
+        <span className="animate-pulse-soft text-[15px] text-muted motion-reduce:animate-none">
           Artham is thinking…
         </span>
       </div>
@@ -51,7 +56,7 @@ export function PartnerCard({
   }
 
   return (
-    <div className={`${card} border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] slide-up rounded-2xl`}>
+    <div className={`${card} animate-slide-up rounded-2xl border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}>
       <div className="flex items-start gap-4 px-5 py-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center gap-2">
@@ -121,24 +126,12 @@ export function PartnerCard({
 }
 
 function Badge({ action }: { action: ObserveResponse["action"] }) {
-  const label: Record<string, string> = {
-    guide: "a tiny clue",
-    ask: "curious",
-    encourage: "nice catch",
-    observe: "noted",
-  };
-  const tone: Record<string, string> = {
-    guide: "text-ink",
-    ask: "text-ink",
-    encourage: "text-sage",
-    observe: "text-muted",
-  };
-  if (!label[action]) return null;
+  if (action === "none") return null;
   return (
     <span
-      className={`rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[12px] font-bold italic shadow-[0_2px_0_rgb(var(--accent-rgb)/0.16)] ${tone[action]}`}
+      className={`rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[12px] font-bold italic shadow-[0_2px_0_rgb(var(--accent-rgb)/0.16)] ${PARTNER_ACTION_TONES[action]}`}
     >
-      {label[action]}
+      {PARTNER_ACTION_LABELS[action]}
     </span>
   );
 }

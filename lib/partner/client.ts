@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { EngineEvent } from "../engine";
+import { PARTNER_BASE_URL } from "@/constants/partner";
+import type { EngineEvent } from "@/types/engine";
 import { fallbackObserve, fallbackPrelude, fallbackProfile } from "./fallbacks";
 import type {
   ObserveRequest,
@@ -9,7 +10,7 @@ import type {
   PreludeResponse,
   ProfileRequest,
   ThinkingProfile,
-} from "./types";
+} from "@/types/partner";
 
 /**
  * Server-side client for the ADK partner service.
@@ -19,8 +20,6 @@ import type {
  * deterministic in the first place.
  */
 
-const BASE_URL = process.env.PARTNER_URL ?? "http://127.0.0.1:8080";
-
 async function post<T>(
   path: string,
   body: unknown,
@@ -29,7 +28,7 @@ async function post<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${PARTNER_BASE_URL}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

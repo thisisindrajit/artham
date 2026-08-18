@@ -7,9 +7,16 @@ import { fileURLToPath } from "node:url";
  * normally handles. Development-only: nothing ships with this.
  */
 export async function resolve(specifier, context, next) {
-  if (specifier.startsWith(".") && !/\.[cm]?[jt]sx?$/.test(specifier)) {
-    const base = new URL(specifier, context.parentURL).href;
-    for (const candidate of [`${base}.ts`, `${base}/index.ts`]) {
+  const isExtensionless = !/\.[cm]?[jt]sx?$/.test(specifier);
+  const base =
+    specifier.startsWith("@/")
+      ? new URL(`../${specifier.slice(2)}`, import.meta.url).href
+      : specifier.startsWith(".") && isExtensionless
+        ? new URL(specifier, context.parentURL).href
+        : null;
+
+  if (base) {
+    for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`]) {
       if (existsSync(fileURLToPath(candidate))) {
         return next(candidate, context);
       }

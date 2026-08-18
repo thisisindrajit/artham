@@ -1,6 +1,6 @@
 import { requestProfile } from "@/lib/partner/client";
-import { scenarioContext } from "@/lib/partner/context";
-import type { NotesDigest } from "@/lib/partner/types";
+import { scenarioContext } from "@/utils/partner-context";
+import type { NotesDigest } from "@/types/partner";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {

@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!agent/.env.example
+!backend/.env.example
 
 # vercel
 .vercel
@@ -45,5 +47,12 @@ agent/.venv/
 agent/__pycache__/
 agent/**/__pycache__/
 agent/.adk/
+
+# python backend
+backend/.venv/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.coverage
 
 package-lock.json

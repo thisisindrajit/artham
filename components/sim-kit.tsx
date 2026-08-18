@@ -1,7 +1,10 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { cardSoft } from "@/lib/ui";
+import { cardSoft, rangeInput } from "@/constants/ui";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { StatusPill } from "@/components/ui/status-pill";
+import type { UiTone } from "@/types/components";
 
 /**
  * Shared chrome for the hands-on models. Every simulation is a small toy the
@@ -20,16 +23,8 @@ export function SimFrame({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  const badgeClass = badge
-    ? {
-        rose: "bg-rose/12 text-rose",
-        sage: "bg-sage/12 text-sage",
-        accent: "bg-accent/12 text-ink",
-      }[badge.tone]
-    : "";
-
   return (
-    <section className={`${cardSoft} rise overflow-hidden rounded-2xl`}>
+    <section className={`${cardSoft} animate-rise overflow-hidden rounded-2xl motion-reduce:animate-none`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="min-w-0">
           <p className="text-[12px] font-bold italic tracking-[0.16em] text-ink uppercase">
@@ -38,11 +33,7 @@ export function SimFrame({
           <p className="mt-1 text-[15px] text-muted">{hint}</p>
         </div>
         {badge && (
-          <span
-            className={`shrink-0 rounded-full px-3 py-1 text-[13px] font-semibold ${badgeClass}`}
-          >
-            {badge.text}
-          </span>
+          <StatusPill tone={badge.tone}>{badge.text}</StatusPill>
         )}
       </div>
 
@@ -110,7 +101,7 @@ export function SimSlider({
       <input
         type="range"
         aria-label={label}
-        className="deck-slider"
+        className={rangeInput}
         min={min}
         max={max}
         step={step}
@@ -138,16 +129,10 @@ export function SimBar({
   label: string;
   value: number;
   max: number;
-  tone: "rose" | "sage" | "accent" | "ink";
+  tone: UiTone;
   caption: string;
 }) {
   const fill = Math.max(0, Math.min(100, (value / max) * 100));
-  const color = {
-    rose: "var(--color-rose)",
-    sage: "var(--color-sage)",
-    accent: "var(--color-accent)",
-    ink: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-  }[tone];
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between gap-3">
@@ -156,31 +141,7 @@ export function SimBar({
           {caption}
         </span>
       </div>
-      <div className="h-3.5 w-full overflow-hidden rounded-full bg-ink/8">
-        <div
-          className="h-full rounded-full transition-[width,background-color] duration-300"
-          style={{ width: `${fill}%`, background: color }}
-        />
-      </div>
+      <ProgressBar value={fill} tone={tone} className="h-3.5" />
     </div>
   );
-}
-
-/** Turns a series of points into an SVG polyline path inside a 0..w / 0..h box. */
-export function linePath(
-  points: { x: number; y: number }[],
-  xRange: [number, number],
-  yRange: [number, number],
-  w: number,
-  h: number,
-): string {
-  const [x0, x1] = xRange;
-  const [y0, y1] = yRange;
-  return points
-    .map((p, i) => {
-      const px = ((p.x - x0) / (x1 - x0)) * w;
-      const py = h - ((p.y - y0) / (y1 - y0)) * h;
-      return `${i === 0 ? "M" : "L"}${px.toFixed(1)} ${Math.max(0, Math.min(h, py)).toFixed(1)}`;
-    })
-    .join(" ");
 }

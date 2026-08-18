@@ -1,7 +1,7 @@
 import type { EngineEvent } from "@/lib/engine";
 import { requestObserve } from "@/lib/partner/client";
-import { hintForEvent, scenarioContext } from "@/lib/partner/context";
-import type { NotesDigest } from "@/lib/partner/types";
+import { hintForEvent, scenarioContext } from "@/utils/partner-context";
+import type { NotesDigest } from "@/types/partner";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {

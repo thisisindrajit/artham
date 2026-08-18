@@ -1,12 +1,14 @@
 import type { EngineEvent } from "../engine";
 import type {
+  PartnerStats,
+  ThinkingArchetype,
   NotesDigest,
   ObserveResponse,
   PreludeRequest,
   PreludeResponse,
   ProfileRequest,
   ThinkingProfile,
-} from "./types";
+} from "@/types/partner";
 
 /**
  * Every partner capability has a deterministic twin. If the model is slow,
@@ -147,14 +149,7 @@ export function fallbackProfile(req: ProfileRequest): ThinkingProfile {
   };
 }
 
-interface Stats {
-  decisions: number;
-  firstTryCorrect: number;
-  selfCorrections: number;
-  hintsUsed: number;
-}
-
-function computeStats(n: NotesDigest): Stats {
+function computeStats(n: NotesDigest): PartnerStats {
   // One decision point can hold several attempts. Counting attempts instead of
   // decision points inflates the total *and* the derived "wrong first move"
   // count, so a single retry reads as two bad calls. Key by scene and keep
@@ -171,16 +166,10 @@ function computeStats(n: NotesDigest): Stats {
   };
 }
 
-interface Archetype {
-  name: string;
-  score: number;
-  summary: string;
-  strength: { title: string; evidence: string };
-  blindSpot: { title: string; evidence: string };
-  tryNext: string;
-}
-
-function pickArchetype(n: NotesDigest, s: Stats): Archetype {
+function pickArchetype(
+  n: NotesDigest,
+  s: PartnerStats,
+): ThinkingArchetype {
   const iterated = n.experiments.length >= 2;
   const measuredFirst = n.decisions.some(
     (d) => d.approach === "measure_first" && d.correct && d.attempt === 1,
@@ -305,7 +294,7 @@ function pickArchetype(n: NotesDigest, s: Stats): Archetype {
   };
 }
 
-function buildNoticed(n: NotesDigest, s: Stats): string {
+function buildNoticed(n: NotesDigest, s: PartnerStats): string {
   const parts: string[] = [];
   if (s.selfCorrections > 0) {
     parts.push(

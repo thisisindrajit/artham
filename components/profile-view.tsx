@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { ThinkingProfile } from "@/lib/partner/types";
+import type { ThinkingProfile } from "@/types/partner";
 import type { Scenario, SessionNotes } from "@/lib/story";
 import { PaperBackdrop } from "./paper-backdrop";
-import { buttonPrimary, card, cardSoft } from "@/lib/ui";
+import { buttonPrimary, card, cardSoft } from "@/constants/ui";
 
 /** The emotional payoff. Every claim carries the evidence that produced it. */
 export function ProfileView({
@@ -25,7 +25,7 @@ export function ProfileView({
       >
         <PaperBackdrop />
         <div className="space-y-3 text-center">
-          <p className="pulse-soft text-[13px] font-bold italic tracking-[0.18em] text-ink uppercase">
+          <p className="animate-pulse-soft text-[13px] font-bold italic tracking-[0.18em] text-ink uppercase motion-reduce:animate-none">
             Artham is replaying your choices
           </p>
           <p className="text-[16px] text-faint">
@@ -47,7 +47,7 @@ export function ProfileView({
       <PaperBackdrop />
       <div className="mx-auto w-full max-w-2xl space-y-12">
         <header
-          className={`${card} rise space-y-6 rounded-3xl px-7 py-10 text-center sm:px-10`}
+          className={`${card} animate-rise space-y-6 rounded-3xl px-7 py-10 text-center motion-reduce:animate-none sm:px-10`}
         >
           <p className="text-[13px] font-bold italic tracking-[0.18em] text-ink uppercase">
             Here is how you played it
@@ -96,7 +96,7 @@ export function ProfileView({
 
         <Evidence notes={notes} profile={profile} />
 
-        <footer className="rise flex items-center justify-center gap-6 pt-4">
+        <footer className="animate-rise flex items-center justify-center gap-6 pt-4 motion-reduce:animate-none">
           <Link
             href={`/play/${scenario.id}`}
             data-press="deep"
@@ -169,7 +169,7 @@ function Panel({
 
   return (
     <section
-      className={`${card} rise rounded-2xl px-6 py-6`}
+      className={`${card} animate-rise rounded-2xl px-6 py-6 motion-reduce:animate-none`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <p className={`mb-3 text-[12px] tracking-[0.2em] uppercase ${color}`}>
@@ -191,7 +191,7 @@ function Evidence({
   profile: ThinkingProfile;
 }) {
   return (
-    <details className={`${cardSoft} rise group rounded-2xl px-6 py-5`}>
+    <details className={`${cardSoft} animate-rise group rounded-2xl px-6 py-5 motion-reduce:animate-none`}>
       <summary className="cursor-pointer list-none text-[13px] tracking-[0.2em] text-faint uppercase transition group-open:text-muted hover:text-muted">
         Want the receipts?
       </summary>
