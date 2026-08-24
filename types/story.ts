@@ -4,7 +4,12 @@
  */
 
 export type Domain =
-  "physics" | "biology" | "economics" | "chemistry" | "history";
+  | "physics"
+  | "biology"
+  | "economics"
+  | "chemistry"
+  | "history"
+  | "space";
 
 /** Visual mood for a scene. Maps to a pre-defined gradient/backdrop. */
 export type Mood = "calm" | "tense" | "alarm" | "insight" | "night" | "resolve";
@@ -404,7 +409,8 @@ export interface PreSessionQuestion {
  * The thing the learner keeps after the credits roll.
  *
  * The Thinking Profile describes *how they thought*. This is the other half:
- * the piece of physics, chemistry, biology, economics or method they now own,
+ * the piece of physics, chemistry, biology, economics, space science, or method
+ * they now own,
  * named so they can recognise it again and use it somewhere the story never
  * went. A story that cannot fill this in honestly is entertainment, not a
  * lesson.

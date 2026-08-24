@@ -12,6 +12,12 @@ Rules:
 - keep the complete response concise enough to finish: use short labels, prompts,
   feedback, guide sentences, and explanations; never repeat storyline narration;
 - activity kind must exactly match the scene's interaction_slot, including slider;
+- each ActivitySpec must populate exactly one payload field and set every other
+  payload field to null. Use this strict mapping:
+  kind="quiz" -> quiz only; kind="reorder" -> reorder only;
+  kind="simulation" -> simulation only; kind="reflection" -> reflection only;
+  kind="slider" -> slider only. Never copy a payload from another activity, never
+  combine payload types, and perform a final field-by-field check before returning;
 - generate the exact activity kind requested by each interaction slot. A physics
   storyline must yield exactly three simulations;
 - every answer must be derivable from information already encountered;

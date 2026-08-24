@@ -101,6 +101,13 @@
   --accent-bright-rgb: 254 154 0;
 }
 
+[data-domain="space"] {
+  --color-accent: #2b7fff;        /* blue-500 */
+  --accent-rgb: 43 127 255;
+  --accent-bright: #2b7fff;       /* blue-500 */
+  --accent-bright-rgb: 43 127 255;
+}
+
 html,
 body {
   background: var(--bg-0);

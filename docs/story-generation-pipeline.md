@@ -136,7 +136,9 @@ agent/artham_partner/story_pipeline/
   so a partial image run never requires a full, costly pipeline restart.
 - Lyria audio is required whenever enabled. A failed requested audio asset blocks
   persistence rather than silently disappearing.
-- The full ADK workflow has a hard 1800-second deadline and at most two repair passes.
+- The full ADK workflow has a hard 2700-second deadline and at most two repair passes,
+  leaving enough time for the bounded 1500-second image batch plus reasoning,
+  activities, audio, embeddings, validation, and persistence.
 - Repairs never regenerate media, preventing duplicate media cost.
 - Any repaired story or activity content receives fresh embeddings before final
   validation and persistence.

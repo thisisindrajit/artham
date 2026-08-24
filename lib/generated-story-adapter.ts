@@ -28,6 +28,7 @@ const DOMAINS: Domain[] = [
   "economics",
   "chemistry",
   "history",
+  "space",
 ];
 
 const APPROACHES: ApproachTag[] = [

@@ -16,6 +16,7 @@ from artham_partner.story_pipeline.errors import ValidationFailure
 from artham_partner.story_pipeline.orchestrator import (
     StoryOrchestrator,
     _encode_payload,
+    _is_resource_exhausted,
     _normalize_activity_output,
     _normalize_media_output,
     _normalize_storyline_output,
@@ -24,6 +25,16 @@ from tests.helpers import bundle
 
 
 class OrchestratorPolicyTests(unittest.TestCase):
+    def test_adk_namespaced_resource_exhaustion_is_retryable(self) -> None:
+        alternate_error = type("_ResourceExhaustedError", (Exception,), {})
+
+        self.assertTrue(
+            _is_resource_exhausted(
+                alternate_error("429 RESOURCE_EXHAUSTED. Please try again later.")
+            )
+        )
+        self.assertFalse(_is_resource_exhausted(RuntimeError("unrelated failure")))
+
     def test_llm_payload_serializes_contract_values(self) -> None:
         encoded = _encode_payload(
             {"generated_at": datetime(2026, 1, 2, 3, 4, tzinfo=UTC)}
@@ -31,6 +42,14 @@ class OrchestratorPolicyTests(unittest.TestCase):
         self.assertEqual(
             encoded, '{"generated_at":"2026-01-02T03:04:00Z"}'
         )
+
+    def test_storyline_normalization_shortens_long_beats(self) -> None:
+        raw = {"scenes": [{"beat": "Compare the collapsing stellar remnants"}]}
+
+        normalized = _normalize_storyline_output(raw)
+
+        self.assertLessEqual(len(normalized["scenes"][0]["beat"]), 32)
+        self.assertFalse(normalized["scenes"][0]["beat"].endswith(" "))
 
     def test_media_plan_keeps_only_generated_image_dicts(self) -> None:
         value = bundle()

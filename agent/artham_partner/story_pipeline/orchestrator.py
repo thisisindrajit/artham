@@ -70,6 +70,15 @@ def _encode_payload(payload: dict[str, Any]) -> str:
     return _PAYLOAD_ADAPTER.dump_json(payload).decode("utf-8")
 
 
+def _is_resource_exhausted(exc: Exception) -> bool:
+    if isinstance(exc, _ResourceExhaustedError):
+        return True
+    return (
+        type(exc).__name__ == "_ResourceExhaustedError"
+        and "RESOURCE_EXHAUSTED" in str(exc).upper()
+    )
+
+
 class StoryOrchestrator:
     def __init__(
         self,
@@ -581,8 +590,8 @@ class StoryOrchestrator:
                         self._last_provider_completion = (
                             asyncio.get_running_loop().time()
                         )
-            except _ResourceExhaustedError:
-                if attempt == 1:
+            except Exception as exc:
+                if not _is_resource_exhausted(exc) or attempt == 1:
                     raise
                 await asyncio.sleep(RATE_LIMIT_RETRY_DELAY_SECONDS)
                 continue
@@ -1176,6 +1185,10 @@ def _normalize_storyline_output(raw: Any) -> Any:
     for scene in raw["scenes"]:
         if not isinstance(scene, dict):
             continue
+        beat = scene.get("beat")
+        if isinstance(beat, str) and len(beat) > 32:
+            shortened = beat[:32].rsplit(" ", 1)[0].rstrip(" .,:;!?—-")
+            scene["beat"] = shortened or beat[:32]
         hints = scene.get("hints")
         if not isinstance(hints, list) or len(hints) >= 3:
             continue

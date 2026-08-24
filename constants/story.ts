@@ -46,6 +46,7 @@ export const DOMAIN_ORDER: Domain[] = [
   "biology",
   "economics",
   "history",
+  "space",
 ];
 
 export const STORY_PARTS =
