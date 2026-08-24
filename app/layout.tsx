@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 // Plex Mono has no variable axis, so the weights are requested explicitly.

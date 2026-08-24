@@ -17,15 +17,16 @@ import type {
 } from "@/types/partner";
 import type { Scenario, ThinkingObservation } from "@/types/story";
 import { digestNotes } from "@/utils/session-notes";
+import { fallbackObserve } from "@/lib/partner/fallbacks";
 
 export function useStorySession(scenario: Scenario) {
-  const [state, setState] = useState<PlayState>(() => initState(scenario.id));
+  const [state, setState] = useState<PlayState>(() =>
+    initState(scenario.id, scenario),
+  );
   const [prelude, setPrelude] = useState<PreludeResponse | null>(null);
   const [partner, setPartner] = useState<ObserveResponse | null>(null);
   const [thinking, setThinking] = useState(false);
   const [profile, setProfile] = useState<ThinkingProfile | null>(null);
-  const [stagePreview, setStagePreview] = useState<string | null>(null);
-  const [reviewing, setReviewing] = useState<string | null>(null);
   const callsUsed = useRef(0);
   const stateRef = useRef(state);
 
@@ -48,6 +49,24 @@ export function useStorySession(scenario: Scenario) {
     [commit],
   );
 
+  const recordClue = useCallback(
+    (sceneId: string, clue: string) => {
+      const value = clue.trim();
+      if (!value) return;
+      const previous = stateRef.current;
+      const existing = previous.clues[sceneId] ?? [];
+      if (existing.includes(value)) return;
+      commit({
+        ...previous,
+        clues: {
+          ...previous.clues,
+          [sceneId]: [...existing, value],
+        },
+      });
+    },
+    [commit],
+  );
+
   useEffect(() => {
     let live = true;
     fetch("/api/partner/prelude", {
@@ -60,7 +79,7 @@ export function useStorySession(scenario: Scenario) {
         if (live && data?.question?.options?.length) setPrelude(data);
       })
       .catch(() => {
-        // The deterministic scenario prelude remains available offline.
+        // The deterministic scenario prelude remains available as a fallback.
       });
     return () => {
       live = false;
@@ -91,32 +110,38 @@ export function useStorySession(scenario: Scenario) {
             : data.action;
 
         setPartner({ ...data, action });
+        if (action === "guide") recordClue(event.sceneId, data.message);
         if (data.observation) recordObservation(data.observation);
       } catch {
-        setPartner(null);
+        const fallback = fallbackObserve(
+          event,
+          "hint" in event ? event.hint : "Recheck what changed in the scene.",
+        );
+        setPartner(fallback);
+        if (fallback.action === "guide") {
+          recordClue(event.sceneId, fallback.message);
+        }
       } finally {
         setThinking(false);
       }
     },
-    [scenario.id, recordObservation],
+    [scenario.id, recordClue, recordObservation],
   );
 
   const run = useCallback(
     (action: Action) => {
-      const result = step(stateRef.current, action);
-      setStagePreview(null);
-      setReviewing(null);
+      const result = step(stateRef.current, action, scenario);
       commit(result.state);
       if (action.type !== "reasoning") setPartner(null);
       if (result.event) void consult(result.event);
     },
-    [commit, consult],
+    [commit, consult, scenario],
   );
 
   useEffect(() => {
-    if (state.phase !== "profile" || profile) return;
+    if (state.phase !== "profile" || profile || thinking) return;
     let live = true;
-    const scene = currentScene(state);
+    const scene = currentScene(state, scenario);
     fetch("/api/partner/profile", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -131,12 +156,12 @@ export function useStorySession(scenario: Scenario) {
         if (live && data?.archetype) setProfile(data);
       })
       .catch(() => {
-        // ProfileView keeps its retry state visible when the partner is offline.
+        // ProfileView keeps its deterministic profile visible when needed.
       });
     return () => {
       live = false;
     };
-  }, [state, profile, scenario.id]);
+  }, [state, profile, scenario, thinking]);
 
   return {
     state,
@@ -144,11 +169,7 @@ export function useStorySession(scenario: Scenario) {
     partner,
     thinking,
     profile,
-    stagePreview,
-    reviewing,
     run,
     setPartner,
-    setStagePreview,
-    setReviewing,
   };
 }

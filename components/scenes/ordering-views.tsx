@@ -1,37 +1,28 @@
-import { useState } from "react";
-import { StorySimulation } from "../story-simulation";
+import { useState, type DragEvent } from "react";
 import { cardSoft, storyIndex, storyOption, storyTag } from "@/constants/ui";
 import type { ReflectScene, ReorderScene } from "@/lib/story";
 import { shuffledStepIds } from "@/utils/story-shuffle";
-import {
-  HelpButton,
-  NudgeButton,
-  PrimaryButton,
-} from "./controls";
-import { Narration, PrimerCard, StoryCopy, TriviaCard } from "./shared";
+import { HelpButton, NudgeButton, PrimaryButton } from "./controls";
+import { StoryCopy } from "./shared";
 
-export function ReorderView({
+export function ReorderControls({
   scene,
   busy,
   onSubmit,
   onHelp,
-  onPreview,
+  initialOrder,
 }: {
   scene: ReorderScene;
   busy: boolean;
   onSubmit: (order: string[]) => void;
   onHelp: () => void;
-  onPreview: (message: string | null) => void;
+  initialOrder?: string[];
 }) {
-  const [order, setOrder] = useState(() => shuffledStepIds(scene));
+  const [order, setOrder] = useState(
+    () => initialOrder ?? shuffledStepIds(scene),
+  );
   const [moved, setMoved] = useState<string | null>(null);
-
-  const [lastSceneId, setLastSceneId] = useState(scene.id);
-  if (scene.id !== lastSceneId) {
-    setLastSceneId(scene.id);
-    setOrder(shuffledStepIds(scene));
-    setMoved(null);
-  }
+  const [dragging, setDragging] = useState<string | null>(null);
 
   function move(index: number, delta: number) {
     const target = index + delta;
@@ -40,24 +31,30 @@ export function ReorderView({
     [next[index], next[target]] = [next[target], next[index]];
     setOrder(next);
     setMoved(next[target]);
-    onPreview(
-      `Step ${target + 1}: ${scene.steps.find((s) => s.id === next[target])?.label ?? ""}`,
-    );
+  }
+
+  function moveTo(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    setOrder((current) => {
+      const from = current.indexOf(draggedId);
+      const to = current.indexOf(targetId);
+      if (from < 0 || to < 0) return current;
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, draggedId);
+      return next;
+    });
+    setMoved(draggedId);
+  }
+
+  function startDrag(event: DragEvent<HTMLLIElement>, id: string) {
+    setDragging(id);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
   }
 
   return (
     <div className="space-y-8">
-      <Narration text={scene.text} />
-      {scene.trivia && (
-        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
-      )}
-      {scene.primer && (
-        <PrimerCard primer={scene.primer} delay={scene.text.length * 110} />
-      )}
-      {scene.simulation && (
-        <StorySimulation kind={scene.simulation} guide={scene.simGuide} />
-      )}
-
       <div className="space-y-3">
         <span className={`${storyTag} animate-rise inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic motion-reduce:animate-none`}>
           <span aria-hidden className="mr-1.5 not-italic">🧩</span>
@@ -69,6 +66,9 @@ export function ReorderView({
         <p className="animate-rise text-[15.5px] leading-relaxed text-muted motion-reduce:animate-none">
           {scene.instruction}
         </p>
+        <p className="text-[13px] text-faint">
+          Drag the cards into place, or use the arrow buttons.
+        </p>
 
         <ol className="grid gap-2.5 pt-1">
           {order.map((id, i) => {
@@ -77,13 +77,32 @@ export function ReorderView({
             return (
               <li
                 key={id}
-                className={`${cardSoft} ${storyOption} animate-rise flex items-start gap-3 rounded-2xl px-4 py-3.5 transition-transform duration-200 motion-reduce:animate-none ${
+                draggable={!busy}
+                onDragStart={(event) => startDrag(event, id)}
+                onDragEnter={() => dragging && moveTo(dragging, id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(null);
+                }}
+                onDragEnd={() => setDragging(null)}
+                aria-grabbed={dragging === id}
+                className={`${cardSoft} ${storyOption} animate-rise flex cursor-grab items-start gap-3 rounded-2xl px-4 py-3.5 transition duration-200 motion-reduce:animate-none active:cursor-grabbing ${
                   moved === id ? "border-accent/45 bg-accent/8" : ""
+                } ${
+                  dragging === id ? "scale-[0.98] opacity-55 shadow-none" : ""
                 }`}
                 style={{ animationDelay: `${180 + i * 70}ms` }}
               >
                 <span
+                  aria-hidden
+                  className="pt-1 text-lg leading-none text-faint"
+                >
+                  ⠿
+                </span>
+                <span
                   className={`${storyIndex} font-mono tabular-nums grid size-8 shrink-0 place-items-center rounded-full text-[15px] font-extrabold italic`}
+                  aria-label={`Position ${i + 1}`}
                 >
                   {i + 1}
                 </span>
@@ -130,7 +149,7 @@ export function ReorderView({
   );
 }
 
-export function ReflectView({
+export function ReflectControls({
   scene,
   busy,
   onSubmit,
@@ -141,50 +160,38 @@ export function ReflectView({
 }) {
   const [draft, setDraft] = useState("");
 
-  const [lastSceneId, setLastSceneId] = useState(scene.id);
-  if (scene.id !== lastSceneId) {
-    setLastSceneId(scene.id);
-    setDraft("");
-  }
-
   return (
-    <div className="space-y-8">
-      <Narration text={scene.text} />
-      {scene.trivia && (
-        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
-      )}
-      <div
-        className="animate-rise space-y-3 motion-reduce:animate-none"
-        style={{ animationDelay: "160ms" }}
-      >
-        <p className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic tracking-[0.12em] uppercase`}>
-          <span aria-hidden className="mr-1.5 not-italic">💭</span>
-          Quick thought
-        </p>
-        <p className="text-[17px] leading-relaxed text-ink/90">
-          <StoryCopy text={scene.prompt} />
-        </p>
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={4}
-          placeholder={scene.placeholder}
-          className="w-full resize-none rounded-2xl border border-line bg-white px-4 py-3 text-[16px] leading-relaxed text-ink shadow-inner outline-none placeholder:text-faint focus:border-accent/45 focus:ring-4 focus:ring-accent/10"
+    <div
+      className="animate-rise space-y-3 motion-reduce:animate-none"
+      style={{ animationDelay: "160ms" }}
+    >
+      <p className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic tracking-[0.12em] uppercase`}>
+        <span aria-hidden className="mr-1.5 not-italic">💭</span>
+        Quick thought
+      </p>
+      <p className="text-[17px] leading-relaxed text-ink/90">
+        <StoryCopy text={scene.prompt} />
+      </p>
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={4}
+        placeholder={scene.placeholder}
+        className="w-full resize-none rounded-2xl border border-line bg-white px-4 py-3 text-[16px] leading-relaxed text-ink shadow-inner outline-none placeholder:text-faint focus:border-accent/45 focus:ring-4 focus:ring-accent/10"
+      />
+      <div className="flex items-center gap-4">
+        <PrimaryButton
+          onClick={() => onSubmit(draft)}
+          label="Continue"
+          disabled={busy || !draft.trim()}
         />
-        <div className="flex items-center gap-4">
-          <PrimaryButton
-            onClick={() => onSubmit(draft)}
-            label="Continue"
-            disabled={busy || !draft.trim()}
-          />
-          <button
-            onClick={() => onSubmit("")}
-            disabled={busy}
-            className="text-[16px] text-faint transition hover:text-muted"
-          >
-            Skip
-          </button>
-        </div>
+        <button
+          onClick={() => onSubmit("")}
+          disabled={busy}
+          className="text-[16px] text-faint transition hover:text-muted"
+        >
+          Skip
+        </button>
       </div>
     </div>
   );

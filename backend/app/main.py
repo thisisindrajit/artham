@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.router import api_router
+from app.api.router import api_router, internal_router
 from app.core.config import get_settings
+from app.core.middleware import RequestContextMiddleware
+from app.core.responses import register_exception_handlers
 
 
 def create_app() -> FastAPI:
@@ -23,7 +25,13 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    application.add_middleware(
+        RequestContextMiddleware,
+        max_request_bytes=settings.max_request_bytes,
+    )
+    register_exception_handlers(application)
     application.include_router(api_router, prefix=settings.api_v1_prefix)
+    application.include_router(internal_router)
 
     return application
 

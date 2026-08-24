@@ -1,10 +1,35 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type ReactNode } from "react";
 import { cardSoft, rangeInput } from "@/constants/ui";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusPill } from "@/components/ui/status-pill";
 import type { UiTone } from "@/types/components";
+import type { SceneSimGuide } from "@/types/story";
+
+/**
+ * The scene's plain-language label for whatever model is rendered below.
+ *
+ * Passed by context rather than by prop because it belongs to the *scene*, not
+ * to the simulation: the same model means something different in a different
+ * beat. Context keeps all fourteen simulation components free of a prop they
+ * would only ever forward.
+ */
+const SimGuideContext = createContext<SceneSimGuide | null>(null);
+
+export function SimGuideProvider({
+  guide,
+  children,
+}: {
+  guide?: SceneSimGuide;
+  children: ReactNode;
+}) {
+  return (
+    <SimGuideContext.Provider value={guide ?? null}>
+      {children}
+    </SimGuideContext.Provider>
+  );
+}
 
 /**
  * Shared chrome for the hands-on models. Every simulation is a small toy the
@@ -23,6 +48,8 @@ export function SimFrame({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const guide = useContext(SimGuideContext);
+
   return (
     <section className={`${cardSoft} animate-rise overflow-hidden rounded-2xl motion-reduce:animate-none`}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
@@ -37,6 +64,8 @@ export function SimFrame({
         )}
       </div>
 
+      {guide && <SimGuide guide={guide} />}
+
       <div className="px-5 py-5">{children}</div>
 
       {footer && (
@@ -45,6 +74,50 @@ export function SimFrame({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The instructions for the model, inside the model's own frame.
+ *
+ * They used to sit in a separate card above it, which read as a paragraph the
+ * learner had already left behind by the time they reached the slider. Inside
+ * the frame the three lines stay in view while the control is being moved,
+ * which is the only moment they are worth anything.
+ *
+ * Three fixed questions in a fixed order, because a learner meeting a new toy
+ * asks them in that order: what am I looking at, what do I touch, what should I
+ * notice. Keeping the questions constant across every simulation means the
+ * shape only has to be learned once.
+ */
+export function SimGuide({ guide }: { guide: SceneSimGuide }) {
+  const rows = [
+    { emoji: "👀", label: "What this shows", body: guide.shows },
+    { emoji: "👆", label: "What to move", body: guide.move },
+    { emoji: "💡", label: "What changes", body: guide.watch },
+  ];
+
+  return (
+    <div className="border-b border-line bg-accent/[0.06] px-5 py-4">
+      <p className="text-[11.5px] font-bold tracking-[0.16em] text-ink/55 uppercase">
+        How to read this
+      </p>
+      <dl className="mt-3 space-y-2.5">
+        {rows.map((row) => (
+          <div key={row.label} className="flex gap-3">
+            <span aria-hidden className="mt-0.5 text-[15px] leading-none">
+              {row.emoji}
+            </span>
+            <div className="min-w-0">
+              <dt className="text-[13px] font-bold text-ink">{row.label}</dt>
+              <dd className="text-[15px] leading-[1.6] text-ink/80">
+                {row.body}
+              </dd>
+            </div>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 

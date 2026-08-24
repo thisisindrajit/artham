@@ -1,10 +1,8 @@
 import type { EngineEvent } from "@/types/engine";
-import { getScenario } from "@/utils/story";
 import type { ScenarioContext } from "@/types/partner";
+import type { Scenario } from "@/types/story";
 
-export function scenarioContext(scenarioId: string): ScenarioContext | null {
-  const scenario = getScenario(scenarioId);
-  if (!scenario) return null;
+export function scenarioToContext(scenario: Scenario): ScenarioContext {
   return {
     id: scenario.id,
     title: scenario.title,
@@ -12,11 +10,19 @@ export function scenarioContext(scenarioId: string): ScenarioContext | null {
     learningGoal: scenario.learningGoal,
     role: scenario.intro.role,
     greeting: scenario.partnerGreeting,
+    activitySequence: scenario.scenes.map((scene, index) => ({
+      position: index + 1,
+      sceneId: scene.id,
+      beat: scene.beat,
+      activity: scene.simulation
+        ? `simulation + ${scene.type}`
+        : scene.type,
+    })),
   };
 }
 
 /**
- * The story author's hint for this beat. It is both the offline fallback and
+ * The story author's hint for this beat. It is both the deterministic fallback and
  * the ceiling on how revealing the agent is allowed to be.
  */
 export function hintForEvent(event: EngineEvent): string {

@@ -1,14 +1,28 @@
-import type { ReorderScene } from "@/types/story";
+import type { ChoiceOption, ReorderScene } from "@/types/story";
 
 /**
  * Deterministic shuffle for reorder scenes. Server and client must agree, so
  * the seed is the scene id and never `Math.random`.
  */
 export function shuffledStepIds(scene: ReorderScene): string[] {
-  const ids = scene.steps.map((s) => s.id);
+  return seededShuffle(
+    scene.steps.map((step) => step.id),
+    scene.id,
+  );
+}
+
+export function shuffledChoiceOptions(
+  sceneId: string,
+  options: ChoiceOption[],
+): ChoiceOption[] {
+  return seededShuffle(options, `${sceneId}:choices`);
+}
+
+function seededShuffle<T>(values: T[], seed: string): T[] {
+  const shuffled = [...values];
   let h = 2166136261;
-  for (let i = 0; i < scene.id.length; i += 1) {
-    h ^= scene.id.charCodeAt(i);
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
   const rand = () => {
@@ -18,9 +32,9 @@ export function shuffledStepIds(scene: ReorderScene): string[] {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  for (let i = ids.length - 1; i > 0; i -= 1) {
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
-    [ids[i], ids[j]] = [ids[j], ids[i]];
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return ids;
+  return shuffled;
 }

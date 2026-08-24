@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* Enter/exit utilities (`animate-in`, `slide-in-from-bottom`, …) used by the
+   shadcn Sheet. CSS only — it adds no runtime. */
+@import "tw-animate-css";
 
 @theme inline {
   --font-sans: 'Satoshi', ui-sans-serif, system-ui, sans-serif;
@@ -6,9 +9,9 @@
 }
 
 /* Colours are deliberately NOT `inline`: `@theme inline` bakes literal values
-   into the generated utilities, which would make `.story-stage` unable to
-   re-declare them for its dark surface. Non-inline keeps utilities pointing at
-   `var(--color-*)`, so the override below cascades. */
+   into the generated utilities, which would stop a nested surface from
+   re-declaring them. Non-inline keeps utilities pointing at `var(--color-*)`,
+   so the per-domain overrides below cascade. */
 @theme {
   /* The chrome is greyscale on purpose. Colour in this product means one of
      two things and nothing else: which subject you are in (--color-accent,
@@ -32,16 +35,6 @@
   --animate-slide-up: slide-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-deck-wave: drift 6s linear infinite;
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
-  --animate-stage-copy: stage-copy 220ms ease-out both;
-  --animate-story-wind: story-wind 4s ease-in-out infinite alternate;
-  --animate-story-rain: story-rain 1.1s linear infinite;
-  --animate-story-scan: story-scan 2.2s ease-in-out infinite;
-  --animate-story-deck-shake: story-deck-shake 0.75s ease-in-out infinite;
-  --animate-story-weight: story-weight 2.6s ease-in-out infinite;
-  --animate-story-bubble: story-bubble 2.4s ease-in infinite;
-  --animate-story-plume: story-plume 3s ease-in-out infinite;
-  --animate-story-flicker: story-flicker 3.4s ease-in-out infinite;
-  --animate-story-live-dot: live-dot 1.8s ease-out infinite;
 }
 
 :root {
@@ -159,110 +152,6 @@ body {
   }
   50% {
     opacity: 1;
-  }
-}
-
-@keyframes stage-copy {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes story-wind {
-  from {
-    transform: translateX(-28px);
-  }
-  to {
-    transform: translateX(28px);
-  }
-}
-
-@keyframes story-rain {
-  from {
-    transform: translate(8px, -24px);
-  }
-  to {
-    transform: translate(-8px, 24px);
-  }
-}
-
-@keyframes story-scan {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes story-deck-shake {
-  0%,
-  100% {
-    transform: translateY(-2px);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-}
-
-@keyframes story-weight {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(4px);
-  }
-}
-
-@keyframes story-bubble {
-  0% {
-    transform: translateY(6px);
-    opacity: 0;
-  }
-  35% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateY(-34px);
-    opacity: 0;
-  }
-}
-
-@keyframes story-plume {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translateY(-10px) scale(1.12);
-    opacity: 0.7;
-  }
-}
-
-@keyframes story-flicker {
-  0%,
-  100% {
-    opacity: 0.85;
-  }
-  45% {
-    opacity: 0.3;
-  }
-}
-
-@keyframes live-dot {
-  70% {
-    box-shadow: 0 0 0 6px rgb(var(--accent-rgb) / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
 }
 

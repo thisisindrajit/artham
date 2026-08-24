@@ -83,7 +83,12 @@ export async function requestProfile(
     Omit<ThinkingProfile, "fallback" | "stats">
   >("/profile", req, 30_000);
   const deterministic = fallbackProfile(req);
-  if (!result?.archetype || !result.strength || !result.blindSpot) {
+  if (
+    !result?.archetype ||
+    !result.strength ||
+    !result.blindSpot ||
+    !result.details?.length
+  ) {
     return deterministic;
   }
   return { ...result, stats: deterministic.stats, fallback: false };

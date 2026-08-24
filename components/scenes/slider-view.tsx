@@ -1,57 +1,52 @@
 import { useState } from "react";
 import type React from "react";
+import { SimGuide } from "@/components/sim-kit";
 import { cardSoft, rangeInput, storyOption, storyTag } from "@/constants/ui";
 import type { SliderScene } from "@/lib/story";
-import { readoutFor, sliderRisk } from "@/utils/engine-formulas";
+import { driverFor, readoutFor, sliderRisk } from "@/utils/engine-formulas";
 import { sliderTrackGradient } from "@/utils/slider-style";
 import { HelpButton, PrimaryButton } from "./controls";
-import { Narration, PrimerCard, StoryCopy, TriviaCard } from "./shared";
+import { StoryCopy } from "./shared";
 import { Metric, SliderMeter } from "./slider-meter";
 
-export function SliderView({
+export function SliderControls({
   scene,
   busy,
   onCommit,
   onHelp,
-  onPreview,
 }: {
   scene: SliderScene;
   busy: boolean;
   onCommit: (value: number) => void;
   onHelp: () => void;
-  onPreview: (message: string | null) => void;
 }) {
   const [value, setValue] = useState(scene.slider.initial);
 
-  // Reset to the scene's starting value when the scene changes.
-  const [lastSceneId, setLastSceneId] = useState(scene.id);
-  if (scene.id !== lastSceneId) {
-    setLastSceneId(scene.id);
-    setValue(scene.slider.initial);
-  }
-
   const readout = readoutFor(scene, value);
+  const driver = driverFor(scene, value);
   const risk = sliderRisk(scene, value);
-  const gap =
-    scene.risk.mode === "separation"
-      ? Math.abs(readout - scene.driver.value)
-      : scene.driver.value - readout;
-  const gapLabel = scene.risk.mode === "separation" ? "Separation" : "Headroom";
-  const gapSafe =
-    scene.risk.mode === "separation" ? gap >= scene.risk.safeGap : gap > 0;
+  const dynamicDriver = scene.driver.expr === "part_of_total_percent";
+  const gap = dynamicDriver
+    ? 100 - driver
+    : scene.risk.mode === "separation"
+      ? Math.abs(readout - driver)
+      : driver - readout;
+  const gapLabel = dynamicDriver
+    ? "Investor ownership"
+    : scene.risk.mode === "separation"
+      ? "Separation"
+      : "Headroom";
+  const gapSafe = dynamicDriver
+    ? driver >= 75
+    : scene.risk.mode === "separation"
+      ? gap >= scene.risk.safeGap
+      : gap > 0;
 
   return (
     <div className="space-y-8">
-      <Narration text={scene.text} />
-      {scene.trivia && (
-        <TriviaCard trivia={scene.trivia} delay={scene.text.length * 110} />
-      )}
-      {scene.primer && (
-        <PrimerCard primer={scene.primer} delay={scene.text.length * 110} />
-      )}
-
       <div className={`${cardSoft} ${storyOption} animate-rise overflow-hidden rounded-2xl motion-reduce:animate-none`}>
-        <SliderMeter scene={scene} risk={risk} readout={readout} />
+        {scene.simGuide && <SimGuide guide={scene.simGuide} />}
+        <SliderMeter scene={scene} risk={risk} readout={readout} driver={driver} />
 
         <div className="grid grid-cols-3 border-t border-line">
           <Metric
@@ -62,8 +57,8 @@ export function SliderView({
           />
           <Metric
             label={scene.driver.label}
-            value={scene.driver.value.toFixed(scene.readout.decimals)}
-            unit={scene.driver.unit}
+            value={driver.toFixed(scene.readout.decimals)}
+            unit={dynamicDriver ? "%" : scene.driver.unit}
             tone="muted"
           />
           <Metric
@@ -79,7 +74,7 @@ export function SliderView({
             <span className="text-[13px] tracking-[0.16em] text-muted uppercase">
               {scene.slider.label}
             </span>
-            <span className={`font-mono tabular-nums text-[28px] font-light text-ink`}>
+            <span className="font-mono tabular-nums text-[28px] font-light text-ink">
               {value}
               <span className="ml-1 text-[16px] text-muted">
                 {scene.slider.unit}
@@ -88,6 +83,7 @@ export function SliderView({
           </div>
           <input
             type="range"
+            aria-label={scene.slider.label}
             className={rangeInput}
             style={
               {
@@ -99,16 +95,7 @@ export function SliderView({
             step={scene.slider.step}
             value={value}
             disabled={busy}
-            onChange={(e) => {
-              const nextValue = Number(e.target.value);
-              setValue(nextValue);
-              onPreview(
-                `Trying ${nextValue}${scene.slider.unit} — ${scene.readout.label.toLowerCase()} ${readoutFor(
-                  scene,
-                  nextValue,
-                ).toFixed(scene.readout.decimals)}${scene.readout.unit}`,
-              );
-            }}
+            onChange={(e) => setValue(Number(e.target.value))}
           />
           <div className="flex justify-between text-[13px] text-faint">
             <span>

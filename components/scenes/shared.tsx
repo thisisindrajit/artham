@@ -1,9 +1,17 @@
-import { Fragment } from "react";
+"use client";
+
+import { Fragment, useState } from "react";
+import rehypeKatex from "rehype-katex";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { STORY_PARTS } from "@/constants/story";
 import { storyEmoji } from "@/utils/story-visual";
+import { StorySimulation } from "@/components/story-simulation";
 import type {
   Scene,
   ScenePrimer,
+  SceneLearningReference,
   SceneTrivia,
   StoryTakeaway,
 } from "@/lib/story";
@@ -41,15 +49,90 @@ export function Narration({ text }: { text: string[] }) {
   return (
     <div className="space-y-4">
       {text.map((line, i) => (
-        <p
+        <div
           key={i}
-          className={`animate-rise text-[17px] leading-[1.7] text-ink/85 motion-reduce:animate-none ${
-            i === 0 ? "font-medium" : ""
-          }`}
+          className="animate-rise motion-reduce:animate-none"
           style={{ animationDelay: `${i * 110}ms` }}
         >
-          <StoryCopy text={line} />
-        </p>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            skipHtml
+            components={{
+              p: ({ children }) => (
+                <p
+                  className={`mb-4 text-[17px] leading-[1.7] text-ink/85 last:mb-0 ${
+                    i === 0 ? "font-medium" : ""
+                  }`}
+                >
+                  {children}
+                </p>
+              ),
+              strong: ({ children }) => (
+                <strong className="font-extrabold tracking-tight text-ink">
+                  {children}
+                </strong>
+              ),
+              em: ({ children }) => (
+                <em className="font-semibold italic text-ink">{children}</em>
+              ),
+              h2: ({ children }) => (
+                <h2 className="mt-7 mb-3 text-[24px] font-semibold tracking-tight text-ink">
+                  {children}
+                </h2>
+              ),
+              h3: ({ children }) => (
+                <h3 className="mt-6 mb-2 text-[20px] font-semibold tracking-tight text-ink">
+                  {children}
+                </h3>
+              ),
+              ul: ({ children }) => (
+                <ul className="my-4 list-disc space-y-2 pl-6 text-[17px] leading-[1.65] text-ink/85">
+                  {children}
+                </ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="my-4 list-decimal space-y-2 pl-6 text-[17px] leading-[1.65] text-ink/85">
+                  {children}
+                </ol>
+              ),
+              blockquote: ({ children }) => (
+                <blockquote className="my-4 border-l-4 border-accent/45 bg-accent/[0.06] px-4 py-3 italic text-ink/80">
+                  {children}
+                </blockquote>
+              ),
+              table: ({ children }) => (
+                <div className="my-5 w-full overflow-x-auto rounded-xl border border-line">
+                  <table className="w-full min-w-max table-fixed border-collapse text-left text-[15px]">
+                    {children}
+                  </table>
+                </div>
+              ),
+              th: ({ children }) => (
+                <th className="border-b border-line bg-ink/[0.05] px-4 py-3 font-bold text-ink">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="border-b border-line/70 px-4 py-3 text-ink/80">
+                  {children}
+                </td>
+              ),
+              a: ({ children, href }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-accent underline underline-offset-2"
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {line}
+          </ReactMarkdown>
+        </div>
       ))}
     </div>
   );
@@ -166,6 +249,70 @@ export function TriviaCard({
   );
 }
 
+export function LearningReferenceCard({
+  reference,
+}: {
+  reference: SceneLearningReference;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <aside className="animate-rise overflow-hidden rounded-2xl border border-sage/30 bg-sage/[0.06] shadow-[0_3px_0_rgba(55,94,73,0.08)] motion-reduce:animate-none">
+      <div className="bg-white/70 p-3">
+        {imageFailed ? (
+          <div className="grid min-h-36 place-items-center rounded-xl bg-sage/[0.08] px-6 text-center text-[14px] leading-relaxed text-ink/65">
+            The source image is unavailable, but its explanation and attribution
+            remain below.
+          </div>
+        ) : (
+          // Exa returns arbitrary open-license hosts, so this attributed reference
+          // intentionally bypasses Next's fixed remote-image allowlist.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={reference.imageUrl}
+            alt={reference.altText}
+            loading="lazy"
+            onError={() => setImageFailed(true)}
+            className="mx-auto max-h-[28rem] w-auto rounded-xl object-contain"
+          />
+        )}
+      </div>
+      <div className="space-y-3 border-t border-sage/20 px-5 py-4">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-sage uppercase">
+          See the real thing
+        </p>
+        <h3 className="text-[18px] font-semibold text-ink">{reference.title}</h3>
+        <p className="text-[16px] leading-relaxed text-ink/80">
+          {reference.plainExplanation}
+        </p>
+        <p className="rounded-xl bg-white/70 px-4 py-3 text-[15px] leading-relaxed text-ink/75">
+          <strong className="text-ink">Why this matters:</strong>{" "}
+          {reference.whyImportant}
+        </p>
+        <p className="text-[12px] leading-relaxed text-faint">
+          Source:{" "}
+          <a
+            href={reference.sourcePageUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-line underline-offset-2 hover:text-muted"
+          >
+            {reference.sourceName}
+          </a>{" "}
+          ·{" "}
+          <a
+            href={reference.licenseUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-line underline-offset-2 hover:text-muted"
+          >
+            {reference.licenseName}
+          </a>
+        </p>
+      </div>
+    </aside>
+  );
+}
+
 /**
  * The last thing a learner sees before the profile. The profile is about *how
  * they think*; this is about *what they now know*. Without it a story is an
@@ -226,6 +373,39 @@ function TakeawayList({ title, items }: { title: string; items: string[] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Everything on a beat that is the same whether the learner is playing it now
+ * or scrolling back past it later: the prose, the fact, the micro-lesson and
+ * the model.
+ *
+ * Split out from the decision controls so the session can render a beat twice —
+ * live at the bottom of the page, and unchanged above once it is answered —
+ * without either copy drifting from the other.
+ */
+export function SceneBody({ scene }: { scene: Scene }) {
+  const afterText = scene.text.length * 110;
+  const learningBlocks = [
+    "primer" in scene && scene.primer ? (
+      <PrimerCard key="primer" primer={scene.primer} delay={afterText} />
+    ) : null,
+    scene.learningReference ? (
+      <LearningReferenceCard key="reference" reference={scene.learningReference} />
+    ) : null,
+    scene.trivia ? (
+      <TriviaCard key="trivia" trivia={scene.trivia} delay={afterText} />
+    ) : null,
+  ].filter((block): block is NonNullable<typeof block> => block !== null);
+  return (
+    <div className="space-y-8">
+      <Narration text={scene.text} />
+      {learningBlocks.slice(0, 2)}
+      {scene.simulation && (
+        <StorySimulation kind={scene.simulation} guide={scene.simGuide} />
+      )}
     </div>
   );
 }

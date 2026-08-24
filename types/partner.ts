@@ -20,6 +20,13 @@ export interface ScenarioContext {
   role: string;
   /** Scenario-flavoured opening line for the deterministic fallback. */
   greeting: string;
+  /** Ordered story beats so the model can interpret evidence as progression. */
+  activitySequence: {
+    position: number;
+    sceneId: string;
+    beat: string;
+    activity: string;
+  }[];
 }
 
 export interface PreludeRequest {
@@ -85,6 +92,11 @@ export interface ThinkingProfile {
   strength: { title: string; evidence: string };
   blindSpot: { title: string; evidence: string };
   noticed: string;
+  details: Array<{
+    title: string;
+    observation: string;
+    evidence: string;
+  }>;
   tryNext: string;
   stats: {
     decisions: number;

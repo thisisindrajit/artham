@@ -63,8 +63,12 @@ export interface PlayState {
   tried: Record<string, string[]>;
   /** Hints revealed so far, per scene. Caps at 3. */
   hintLevel: Record<string, number>;
+  /** Guidance stays in the transcript instead of disappearing with the partner card. */
+  clues: Record<string, string[]>;
   /** Slider values committed, per scene, in order. */
   commits: Record<string, number[]>;
+  /** Most recently submitted reorder item IDs, retained across a retry remount. */
+  reorderDrafts: Record<string, string[]>;
   /** Consequence or result blocking the scene until acknowledged. */
   pending: Pending | null;
   /** Beats the learner has lived through, oldest first, without repeats. */
@@ -84,6 +88,7 @@ export type Action =
   | { type: "choose"; optionId: string }
   | { type: "commit"; value: number }
   | { type: "reorder"; order: string[] }
+  | { type: "reveal" }
   | { type: "reflect"; answer: string }
   | { type: "help" }
   | { type: "reasoning"; question: string; answer: string };

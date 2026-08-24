@@ -1,6 +1,6 @@
 /**
  * The story layer is fully deterministic. Nothing in this file may depend on
- * the partner agent — the engine must be playable when the agent is offline.
+ * the partner agent — the engine remains playable when live guidance is unavailable.
  */
 
 export type Domain =
@@ -15,6 +15,7 @@ export type Mood = "calm" | "tense" | "alarm" | "insight" | "night" | "resolve";
  * the others' drawings.
  */
 export type SceneVisualKind =
+  | "generated"
   // bridge family
   | "bridge"
   | "scan"
@@ -52,6 +53,17 @@ export interface SceneVisual {
   title: string;
   caption: string;
   status: string;
+  /**
+   * Path under `/public` for the beat's picture, e.g. "/scenes/cold-case/b1.png".
+   *
+   * Optional on purpose. The artwork is generated later, so until it lands the
+   * story paints a subject-coloured tile in the same slot — a placeholder that
+   * looks finished rather than broken, and that a picture can replace without
+   * the page reflowing. `title` and `caption` double as the art brief.
+   */
+  src?: string;
+  /** Optional generated motion clip for this beat. */
+  videoSrc?: string;
 }
 
 /**
@@ -107,6 +119,24 @@ export interface SceneTrivia {
   text: string;
 }
 
+export interface SceneLearningReference {
+  title: string;
+  imageUrl: string;
+  sourcePageUrl: string;
+  sourceName: string;
+  licenseName:
+    | "Public domain"
+    | "CC BY 4.0"
+    | "CC BY-SA 4.0"
+    | "CC BY 3.0"
+    | "CC BY-SA 3.0"
+    | "CC0 1.0";
+  licenseUrl: string;
+  altText: string;
+  plainExplanation: string;
+  whyImportant: string;
+}
+
 /**
  * The plain-language label on a hands-on model.
  *
@@ -128,21 +158,49 @@ export interface SceneSimGuide {
   watch: string;
 }
 
-export type StorySimulationKind =
-  | "timed-pushes"
-  | "storm-band"
-  | "heat-race"
-  | "feed-slow"
-  | "runaway-clock"
-  | "price-cap"
-  | "supply-shift"
-  | "budget-split"
-  | "marker-match"
-  | "contamination-path"
-  | "suspect-funnel"
-  | "siege-clock"
-  | "story-check"
-  | "horse-hollow";
+export interface DeclarativeSimulationControl {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  initial: number;
+  unit: string;
+}
+
+export interface DeclarativeSimulationReadout {
+  id: string;
+  label: string;
+  operation:
+    | "identity"
+    | "linear"
+    | "sum"
+    | "difference"
+    | "product"
+    | "share_percent"
+    | "base_conversion"
+    | "lookup";
+  inputIds: string[];
+  params: Record<string, number>;
+  cases: Array<{ when: Record<string, number>; value: string }>;
+  fallback: string;
+  successValue: string;
+  unit: string;
+  decimals: number;
+}
+
+export interface DeclarativeSimulation {
+  kind: "declarative";
+  title: string;
+  prompt: string;
+  controls: DeclarativeSimulationControl[];
+  observedVariables: string[];
+  readouts: DeclarativeSimulationReadout[];
+  successCondition: string;
+  explanation: string;
+}
+
+export type StorySimulation = DeclarativeSimulation;
 
 export interface ChoiceOption {
   id: string;
@@ -188,7 +246,7 @@ interface SceneBase {
   /** Story-facing direction for the artwork stage. */
   visual: SceneVisual;
   /** Optional hands-on model shown before the decision. */
-  simulation?: StorySimulationKind;
+  simulation?: StorySimulation;
   /**
    * Required whenever `simulation` is set: the three lines that tell a learner
    * how to read the model. Verified, because an unlabelled model teaches
@@ -202,6 +260,8 @@ interface SceneBase {
   primer?: ScenePrimer | ScenePrimer[];
   /** Optional flavour fact, shown after the story text. Never load-bearing. */
   trivia?: SceneTrivia;
+  /** Attributed open-license visual used to explain the scene's core idea. */
+  learningReference?: SceneLearningReference;
 }
 
 export interface NarrativeScene extends SceneBase {
@@ -252,7 +312,13 @@ export interface SliderScene extends SceneBase {
     decimals: number;
   };
   /** The fixed value the readout is being compared against. */
-  driver: { label: string; value: number; unit: string };
+  driver: {
+    label: string;
+    value: number;
+    unit: string;
+    expr?: "fixed" | "part_of_total_percent";
+    params?: Record<string, number>;
+  };
   /**
    * How the risk meter reads the gap between readout and driver.
    * `separation` — danger when the two values *match* (resonance).
@@ -276,7 +342,8 @@ export type SliderExpr =
   | "peak_temperature"
   | "market_rent"
   | "profile_pool"
-  | "night_march";
+  | "night_march"
+  | "linear";
 
 export interface ReorderStep {
   id: string;
@@ -360,11 +427,8 @@ export interface StoryTakeaway {
 /**
  * Cover art for the picker card.
  *
- * `src` is deliberately optional. The artwork is generated later, and until it
- * lands the card paints a themed tile from the domain accent instead — a
- * placeholder that looks finished rather than broken. `alt` is required even
- * while `src` is missing, because it doubles as the brief for whoever (or
- * whatever) draws the picture.
+ * `src` is deliberately optional. Cards without artwork omit the cover slot.
+ * `alt` remains required because it doubles as the image-generation brief.
  */
 export interface ScenarioArt {
   /** Path under `/public`, e.g. "/covers/the-match.png". */
@@ -381,6 +445,8 @@ export interface ScenarioArt {
 
 export interface Scenario {
   id: string;
+  /** Override for stories loaded outside the static authored-story route. */
+  playPath?: string;
   title: string;
   /** The hook, one line, shown under the title on the card. */
   tagline: string;
@@ -394,6 +460,8 @@ export interface Scenario {
   /** Cover art slot. See `ScenarioArt` — the image itself may not exist yet. */
   art: ScenarioArt;
   domain: Domain;
+  /** Specific topic shown beside the broad subject badge. */
+  topic?: string;
   difficulty: "easy" | "medium" | "hard";
   learningGoal: string;
   /** What the learner walks away knowing. Shown before the profile. */
@@ -415,6 +483,10 @@ export interface Scenario {
   preSession: PreSessionQuestion;
   startScene: string;
   scenes: Scene[];
+  backgroundAudio?: {
+    src: string;
+    loop: boolean;
+  };
 }
 
 /* ------------------------------------------------------------------ */

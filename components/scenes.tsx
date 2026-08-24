@@ -1,19 +1,20 @@
 "use client";
 
-export { ChoiceView } from "./scenes/choice-view";
-export { StoryNav } from "./scenes/controls";
+export { ChoiceControls } from "./scenes/choice-view";
+export { PrimaryButton } from "./scenes/controls";
 export {
-  ConsequenceView,
-  EndingView,
-  NarrativeView,
-  ReviewView,
+  EndingControls,
+  NarrativeControls,
+  OutcomeCard,
 } from "./scenes/narrative-views";
-export { ReflectView, ReorderView } from "./scenes/ordering-views";
+export { ReflectControls, ReorderControls } from "./scenes/ordering-views";
 export {
   Narration,
   PrimerCard,
+  SceneBody,
   SceneHeading,
+  StoryCopy,
   TakeawayCard,
   TriviaCard,
 } from "./scenes/shared";
-export { SliderView } from "./scenes/slider-view";
+export { SliderControls } from "./scenes/slider-view";

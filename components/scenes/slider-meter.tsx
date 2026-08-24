@@ -1,4 +1,4 @@
-import { DeckWave } from "@/stories/resonance-bridge/deck-wave";
+import { DeckWave } from "./deck-wave";
 import type { SliderScene } from "@/lib/story";
 
 /** The instrument above the slider track. One per scene family. */
@@ -6,10 +6,12 @@ export function SliderMeter({
   scene,
   risk,
   readout,
+  driver,
 }: {
   scene: SliderScene;
   risk: number;
   readout: number;
+  driver: number;
 }) {
   if (scene.meter === "wave") {
     return (
@@ -23,6 +25,27 @@ export function SliderMeter({
     risk > 0.72 ? "var(--color-rose)"
     : risk > 0.38 ? "var(--color-accent)"
     : "var(--color-sage)";
+
+  if (scene.driver.expr === "part_of_total_percent") {
+    const runwayFill = Math.max(0, Math.min(100, (readout / 30) * 100));
+    const ownershipFill = Math.max(0, Math.min(100, driver));
+    return (
+      <div className="grid gap-4 bg-accent/6 px-5 py-5 sm:grid-cols-2">
+        <LiveBar
+          label={scene.readout.label}
+          value={`${readout.toFixed(scene.readout.decimals)} ${scene.readout.unit}`}
+          fill={runwayFill}
+          color={tone}
+        />
+        <LiveBar
+          label={scene.driver.label}
+          value={`${driver.toFixed(scene.readout.decimals)}${scene.driver.unit}`}
+          fill={ownershipFill}
+          color="var(--color-sage)"
+        />
+      </div>
+    );
+  }
 
   if (scene.meter === "thermometer") {
     const span = scene.driver.value * 1.15;
@@ -46,6 +69,33 @@ export function SliderMeter({
             {scene.driver.label} {scene.driver.value}
             {scene.driver.unit}
           </span>
+        </div>
+      </div>
+    );
+  }
+
+  function LiveBar({
+    label,
+    value,
+    fill,
+    color,
+  }: {
+    label: string;
+    value: string;
+    fill: number;
+    color: string;
+  }) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
+          <span className="text-faint">{label}</span>
+          <span className="font-semibold text-ink">{value}</span>
+        </div>
+        <div className="h-3 overflow-hidden rounded-full bg-ink/8">
+          <div
+            className="h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${fill}%`, background: color }}
+          />
         </div>
       </div>
     );

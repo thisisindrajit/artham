@@ -3,37 +3,27 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlayState } from "@/lib/engine";
 import type { Scenario } from "@/lib/story";
-import { RECENT_STORY_BEATS_ON_SMALL_SCREENS } from "@/constants/story";
 import { storyEmoji } from "@/utils/story-visual";
-import { cardSoft } from "@/constants/ui";
-
 
 /**
  * "The story so far."
  *
- * A story told one page at a time asks the learner to hold six or seven beats
- * in their head while also doing the thinking. This is the page they can look
- * back at, so working memory goes on the problem instead of the plot.
+ * The story column is long by design, so this is the part a learner can hold
+ * still: one line per beat they have reached, with the decision they made under
+ * it. It is built from `state.visited` — beats recorded on *arrival* — rather
+ * than from the scene list, so it never shows a branch they did not take, and
+ * the decisions are their own, which makes it a record of *their* run rather
+ * than a synopsis.
  *
- * It is built from `state.visited` — beats recorded on *arrival* — rather than
- * from the scene list, so it never shows a branch the learner did not take. The
- * decision under each beat is the learner's own correct choice, which is what
- * makes it a record of *their* run rather than a synopsis.
+ * Layout-free on purpose: it fills whatever box it is given. That box is a
+ * sticky column on a wide screen and a bottom sheet on a phone.
  */
 export function StoryRecap({
   scenario,
   state,
-  activeId,
-  onSelect,
-  className = "",
 }: {
   scenario: Scenario;
   state: PlayState;
-  /** The beat currently on screen — the live one, or the one being re-read. */
-  activeId?: string;
-  /** Reopen a beat the learner has already played. */
-  onSelect?: (sceneId: string) => void;
-  className?: string;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const [hasOlder, setHasOlder] = useState(false);
@@ -73,17 +63,11 @@ export function StoryRecap({
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
-  const olderOnSmall = Math.max(
-    0,
-    entries.length - RECENT_STORY_BEATS_ON_SMALL_SCREENS,
-  );
-
   useEffect(() => {
     const list = listRef.current;
     if (!list) return;
-    // Only the tall desktop panel scrolls. Assigning scrollTop directly (rather
-    // than scrollIntoView) keeps a new beat from yanking the whole page on
-    // phones, where the panel sits above the story.
+    // Assigning scrollTop directly (rather than scrollIntoView) keeps a new
+    // beat from yanking the story column, which is the thing being read.
     const overflowing = list.scrollHeight > list.clientHeight + 1;
     setHasOlder(overflowing);
     if (overflowing) {
@@ -93,20 +77,11 @@ export function StoryRecap({
 
   if (state.phase !== "scene") {
     return (
-      <aside
-        aria-label="Story brief"
-        className={`${cardSoft} animate-rise flex flex-col rounded-2xl px-5 py-5 motion-reduce:animate-none ${className}`}
-        style={{ animationDelay: "180ms" }}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-line pb-4">
-          <p className="flex items-center gap-2 text-[11.5px] font-extrabold tracking-[0.15em] text-ink/65 uppercase">
-            <span className="size-1.5 shrink-0 rounded-full bg-accent" />
-            Before you begin
-          </p>
-          <p className="text-[11.5px] font-medium text-faint">
-            {scenario.minutes} min · {scenario.difficulty}
-          </p>
-        </div>
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <p className="flex items-center gap-2 border-b border-line pb-4 text-[11.5px] font-extrabold tracking-[0.15em] text-ink/65 uppercase">
+          <span className="size-1.5 shrink-0 rounded-full bg-accent" />
+          Before you begin
+        </p>
 
         <div className="mt-5">
           <p className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/55 uppercase">
@@ -146,16 +121,12 @@ export function StoryRecap({
           As you play, this panel will remember the key clues, choices and tests
           for you.
         </p>
-      </aside>
+      </div>
     );
   }
 
   return (
-    <aside
-      aria-label="Story context and progress"
-      className={`${cardSoft} animate-rise rounded-2xl px-5 pt-5 pb-4 motion-reduce:animate-none lg:flex lg:min-h-0 lg:flex-col lg:overflow-hidden ${className}`}
-      style={{ animationDelay: "260ms" }}
-    >
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="border-b border-line pb-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11.5px] font-extrabold tracking-[0.15em] text-ink/65 uppercase">
@@ -178,75 +149,23 @@ export function StoryRecap({
         What has happened
       </p>
 
+      {/* `overflow-y-auto` clips on both axes, so the ring around the current
+          beat's dot needs its own gutter — otherwise its left edge is sliced
+          flat against the scroll box. The negative margin gives that gutter
+          back, keeping the dots aligned with the heading above. */}
       <ol
         ref={listRef}
-        className={`mt-4 pr-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto ${
+        className={`-mx-1.5 mt-4 min-h-0 flex-1 overflow-y-auto px-1.5 ${
           hasOlder
             ? "[mask-image:linear-gradient(to_bottom,transparent_0,#000_22px)]"
             : ""
         }`}
       >
-        {olderOnSmall > 0 && (
-          <li className="mb-4 pl-[22px] text-[12px] font-semibold text-ink/45 italic lg:hidden">
-            {olderOnSmall} earlier beat{olderOnSmall > 1 ? "s" : ""} before this
-          </li>
-        )}
         {entries.map((entry, i) => {
           const last = i === entries.length - 1;
-          const here = entry.id === (activeId ?? state.sceneId);
-          // Phones get the recent stretch only. Clipping a scroll box mid-card
-          // is what made this panel look broken, so small screens simply show
-          // fewer beats instead of half of one.
-          const foldedOnSmall =
-            i < entries.length - RECENT_STORY_BEATS_ON_SMALL_SCREENS;
-          const body = (
-            <>
-              <p
-                className={
-                  here
-                    ? "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-extrabold text-ink italic"
-                    : "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-semibold text-ink/70"
-                }
-              >
-                <span aria-hidden className="shrink-0 not-italic">
-                  {entry.emoji}
-                </span>
-                <span>{entry.beat}</span>
-              </p>
-              <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">
-                {entry.decision?.outcome ??
-                  entry.experiment?.outcome ??
-                  entry.context}
-              </p>
-              {entry.decision && (
-                <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                  You chose: {entry.decision.choice}
-                </p>
-              )}
-              {entry.experiment && (
-                <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                  You tested: {entry.experiment.value}
-                </p>
-              )}
-              {entry.reasoning && (
-                <p className="mt-1.5 line-clamp-2 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
-                  You said: {entry.reasoning.answer}
-                </p>
-              )}
-              {entry.corrected && (
-                <p className="mt-1.5 text-[11.5px] font-semibold tracking-wide text-sage uppercase">
-                  You revised an earlier try
-                </p>
-              )}
-            </>
-          );
+          const here = entry.id === state.sceneId;
           return (
-            <li
-              key={entry.id}
-              className={`relative gap-3 pb-5 last:pb-0 ${
-                foldedOnSmall ? "hidden lg:flex" : "flex"
-              }`}
-            >
+            <li key={entry.id} className="relative flex gap-3 pb-5 last:pb-0">
               {/* The rail is positioned against the <li> padding box, not the
                   marker column, so it can cross the gap and land exactly on
                   the next dot instead of stopping short of it. */}
@@ -266,22 +185,49 @@ export function StoryRecap({
                 />
               </span>
 
-              {onSelect ? (
-                <button
-                  type="button"
-                  onClick={() => onSelect(entry.id)}
-                  title={last ? "You are here" : `Re-read: ${entry.beat}`}
-                  className="-my-1 min-w-0 flex-1 cursor-pointer rounded-xl px-2 py-1 text-left transition hover:bg-accent/[0.06]"
+              <div className="min-w-0 flex-1">
+                <p
+                  className={
+                    here
+                      ? "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-extrabold text-ink italic"
+                      : "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-semibold text-ink/70"
+                  }
                 >
-                  {body}
-                </button>
-              ) : (
-                <div className="min-w-0 flex-1">{body}</div>
-              )}
+                  <span aria-hidden className="shrink-0 not-italic">
+                    {entry.emoji}
+                  </span>
+                  <span>{entry.beat}</span>
+                </p>
+                <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">
+                  {entry.decision?.outcome ??
+                    entry.experiment?.outcome ??
+                    entry.context}
+                </p>
+                {entry.decision && (
+                  <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                    You chose: {entry.decision.choice}
+                  </p>
+                )}
+                {entry.experiment && (
+                  <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                    You tested: {entry.experiment.value}
+                  </p>
+                )}
+                {entry.reasoning && (
+                  <p className="mt-1.5 rounded-lg bg-accent/[0.07] px-2.5 py-2 text-[12.5px] leading-[1.4] text-ink/70 italic">
+                    You said: {entry.reasoning.answer}
+                  </p>
+                )}
+                {entry.corrected && (
+                  <p className="mt-1.5 text-[11.5px] font-semibold tracking-wide text-sage uppercase">
+                    You revised an earlier try
+                  </p>
+                )}
+              </div>
             </li>
           );
         })}
       </ol>
-    </aside>
+    </div>
   );
 }

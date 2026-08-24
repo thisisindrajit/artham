@@ -1,58 +1,35 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies
+/node_modules/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
+# Frontend-generated output
 /.next/
 /out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-!agent/.env.example
-!backend/.env.example
-
-# vercel
-.vercel
-
-# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# python partner service
-agent/.venv/
-agent/__pycache__/
-agent/**/__pycache__/
-agent/.adk/
+# Python environments and generated caches
+/agent/.venv/
+/backend/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+*.py[cod]
+/backend/*.db
+/backend/*.db-shm
+/backend/*.db-wal
+/agent/.adk/
 
-# python backend
-backend/.venv/
-backend/**/__pycache__/
-backend/.pytest_cache/
-backend/.ruff_cache/
-backend/.coverage
+# Local configuration and secrets
+.env*
+!.env.example
+!agent/.env.example
+!backend/.env.example
+*.pem
 
-package-lock.json
+# Tool and platform state
+.DS_Store
+.vercel/
+.vscode/mcp.json
+
+# Package-manager debug logs
+npm-debug.log*

@@ -1,5 +1,4 @@
 import {
-  getScenario,
   getScene,
   type ReorderScene,
   type Scenario,
@@ -32,29 +31,24 @@ export type {
   StepResult,
 } from "@/types/engine";
 
-export function initState(scenarioId: string): PlayState {
-  const scenario = requireScenario(scenarioId);
+export function initState(scenarioId: string, scenario: Scenario): PlayState {
   return {
     scenarioId,
     phase: "intro",
     sceneId: scenario.startScene,
     tried: {},
     hintLevel: {},
+    clues: {},
     commits: {},
+    reorderDrafts: {},
     pending: null,
     visited: [scenario.startScene],
     notes: emptyNotes(scenarioId),
   };
 }
 
-function requireScenario(id: string): Scenario {
-  const scenario = getScenario(id);
-  if (!scenario) throw new Error(`Unknown scenario "${id}"`);
-  return scenario;
-}
-
-export function currentScene(state: PlayState): Scene {
-  return getScene(requireScenario(state.scenarioId), state.sceneId);
+export function currentScene(state: PlayState, scenario: Scenario): Scene {
+  return getScene(scenario, state.sceneId);
 }
 
 /**
@@ -64,15 +58,22 @@ export function currentScene(state: PlayState): Scene {
  * recorded exactly once, wherever the jump came from. Doing it here rather
  * than at each `sceneId:` assignment means a new branch cannot forget to.
  */
-export function step(state: PlayState, action: Action): StepResult {
-  const result = transition(state, action);
+export function step(
+  state: PlayState,
+  action: Action,
+  scenario: Scenario,
+): StepResult {
+  const result = transition(state, action, scenario);
   const { sceneId, visited } = result.state;
   if (visited.includes(sceneId)) return result;
   return { ...result, state: { ...result.state, visited: [...visited, sceneId] } };
 }
 
-function transition(state: PlayState, action: Action): StepResult {
-  const scenario = requireScenario(state.scenarioId);
+function transition(
+  state: PlayState,
+  action: Action,
+  scenario: Scenario,
+): StepResult {
   const scene = getScene(scenario, state.sceneId);
   const notes = cloneNotes(state.notes);
 
@@ -318,6 +319,7 @@ function transition(state: PlayState, action: Action): StepResult {
               ...state.tried,
               [scene.id]: dedupe([...priorWrong, answer.join(">")]),
             },
+            reorderDrafts: { ...state.reorderDrafts, [scene.id]: answer },
             pending: { text: scene.wrong, correct: false, nextSceneId: scene.id },
             notes,
           },
@@ -342,6 +344,7 @@ function transition(state: PlayState, action: Action): StepResult {
 
       const next: PlayState = {
         ...state,
+        reorderDrafts: { ...state.reorderDrafts, [scene.id]: answer },
         pending: { text: scene.right, correct: true, nextSceneId: scene.next },
         notes,
       };
@@ -371,6 +374,100 @@ function transition(state: PlayState, action: Action): StepResult {
         };
       }
       return { state: next, event: null };
+    }
+
+    case "reveal": {
+      if (state.pending?.correct) return { state, event: null };
+
+      if (scene.type === "choice") {
+        const answer = scene.options.find((option) => option.correct);
+        if (!answer) return { state, event: null };
+        notes.decisions.push({
+          sceneId: scene.id,
+          choice: `Answer shown: ${answer.label}`,
+          correct: true,
+          outcome: answer.outcome,
+          attempt:
+            state.notes.decisions.filter(
+              (decision) => decision.sceneId === scene.id,
+            ).length + 1,
+          approach: answer.approach,
+          at: Date.now(),
+        });
+        return {
+          state: {
+            ...state,
+            pending: {
+              text: answer.outcome ?? `The answer is ${answer.label}.`,
+              correct: true,
+              nextSceneId: answer.next,
+            },
+            notes,
+          },
+          event: null,
+        };
+      }
+
+      if (scene.type === "reorder") {
+        const correctOrder = scene.steps.map((item) => item.id);
+        notes.decisions.push({
+          sceneId: scene.id,
+          choice: `Answer shown: ${describeOrder(scene, correctOrder)}`,
+          correct: true,
+          outcome: scene.right,
+          attempt:
+            state.notes.decisions.filter(
+              (decision) => decision.sceneId === scene.id,
+            ).length + 1,
+          at: Date.now(),
+        });
+        return {
+          state: {
+            ...state,
+            reorderDrafts: { ...state.reorderDrafts, [scene.id]: correctOrder },
+            pending: {
+              text: scene.right,
+              correct: true,
+              nextSceneId: scene.next,
+            },
+            notes,
+          },
+          event: null,
+        };
+      }
+
+      if (scene.type === "slider") {
+        const midpoint = (scene.target.min + scene.target.max) / 2;
+        const value =
+          Math.round((midpoint - scene.slider.min) / scene.slider.step) *
+            scene.slider.step +
+          scene.slider.min;
+        const outcome = bandFor(scene, value);
+        notes.experiments.push({
+          sceneId: scene.id,
+          value,
+          correct: true,
+          outcome,
+        });
+        return {
+          state: {
+            ...state,
+            commits: {
+              ...state.commits,
+              [scene.id]: [...(state.commits[scene.id] ?? []), value],
+            },
+            pending: {
+              text: `${scene.slider.label}: ${value}${scene.slider.unit}. ${outcome}`,
+              correct: true,
+              nextSceneId: scene.next,
+            },
+            notes,
+          },
+          event: null,
+        };
+      }
+
+      return { state, event: null };
     }
 
     case "reflect": {
@@ -424,12 +521,17 @@ function transition(state: PlayState, action: Action): StepResult {
         return { state, event: null };
       }
       const level = Math.min((state.hintLevel[scene.id] ?? 0) + 1, 3);
+      const hint = hintAt(scene, level - 1);
       notes.hintsUsed += 1;
       notes.helpRequests += 1;
       return {
         state: {
           ...state,
           hintLevel: { ...state.hintLevel, [scene.id]: level },
+          clues: {
+            ...state.clues,
+            [scene.id]: dedupe([...(state.clues[scene.id] ?? []), hint]),
+          },
           notes,
         },
         event: {
@@ -437,7 +539,7 @@ function transition(state: PlayState, action: Action): StepResult {
           sceneId: scene.id,
           concept: scene.concept,
           what: describeSituation(scene),
-          hint: hintAt(scene, level - 1),
+          hint,
           level,
         },
       };

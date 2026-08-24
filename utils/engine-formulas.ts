@@ -50,11 +50,25 @@ export function evaluate(
       const { fromInside, perPace } = params;
       return Math.max(0, fromInside + perPace * value);
     }
+    case "linear": {
+      const { intercept = 0, slope = 1 } = params;
+      return intercept + slope * value;
+    }
   }
 }
 
 export function readoutFor(scene: SliderScene, value: number): number {
   return evaluate(scene.readout.expr, value, scene.readout.params);
+}
+
+export function driverFor(scene: SliderScene, value: number): number {
+  if (scene.driver.expr === "part_of_total_percent") {
+    const numerator = scene.driver.params?.numerator;
+    if (Number.isFinite(numerator) && numerator! + value !== 0) {
+      return (numerator! / (numerator! + value)) * 100;
+    }
+  }
+  return scene.driver.value;
 }
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
@@ -64,9 +78,17 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
  * scene: a rhythm that matches, or a limit the readout is climbing towards.
  */
 export function sliderRisk(scene: SliderScene, value: number): number {
+  if (scene.driver.expr === "part_of_total_percent") {
+    if (value >= scene.target.min && value <= scene.target.max) return 0;
+    const distance =
+      value < scene.target.min
+        ? scene.target.min - value
+        : value - scene.target.max;
+    return clamp01(distance / Math.max(scene.slider.step, scene.slider.max - scene.slider.min));
+  }
   const readout = readoutFor(scene, value);
   const { mode, safeGap } = scene.risk;
-  const driver = scene.driver.value;
+  const driver = driverFor(scene, value);
   switch (mode) {
     case "separation":
       return clamp01(1 - Math.abs(readout - driver) / safeGap);

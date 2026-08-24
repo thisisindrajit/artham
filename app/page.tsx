@@ -1,10 +1,20 @@
-import { scenarios } from "@/lib/story";
+import { getGeneratedScenarios } from "@/lib/generated-story-adapter";
 import { ScenarioPicker } from "@/components/scenario-picker";
 import { PaperBackdrop } from "@/components/paper-backdrop";
 import { ArthamMark } from "@/components/artham-mark";
+import { AuthStatus } from "@/components/auth/auth-status";
 import { sticker } from "@/constants/ui";
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await getSession();
+  if (session) {
+    redirect("/dashboard");
+  }
+
+  const generatedScenarios = await getGeneratedScenarios();
+  const availableScenarios = generatedScenarios;
   return (
     <div
       data-mood="welcome"
@@ -12,12 +22,9 @@ export default function Home() {
     >
       <PaperBackdrop />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center py-12 sm:py-16 lg:py-20">
-        <div className="animate-rise max-w-3xl space-y-5 motion-reduce:animate-none sm:space-y-6">
+        <div className="animate-rise flex w-full items-start justify-between gap-4 motion-reduce:animate-none">
           <div className="flex items-center gap-3 sm:gap-4">
-            <ArthamMark
-              size={36}
-              priority
-            />
+            <ArthamMark size={36} priority />
             <div
               className={`${sticker} rounded-full bg-[linear-gradient(95deg,#00b8db_0%,#8e51ff_26%,#f6339a_50%,#00bc7d_74%,#fe9a00_100%)] p-0.5 shadow-[0_3px_0_rgba(23,23,23,0.1)]`}
             >
@@ -26,6 +33,9 @@ export default function Home() {
               </p>
             </div>
           </div>
+          <AuthStatus user={null} />
+        </div>
+        <div className="animate-rise mt-6 max-w-3xl space-y-5 motion-reduce:animate-none sm:space-y-6">
           {/* pb reserves room for the wavy underline, which is painted outside
               the h1's box and otherwise crowds the paragraph. */}
           <h1 className="pb-1 text-[clamp(2.5rem,6.4vw,3.5rem)] leading-[1.28] font-light tracking-tight text-ink sm:pb-2 sm:leading-[1.2]">
@@ -54,7 +64,10 @@ export default function Home() {
               Pick your situation
             </span>
           </div>
-          <ScenarioPicker scenarios={scenarios} />
+          <ScenarioPicker
+            scenarios={availableScenarios}
+            isAuthenticated={Boolean(session)}
+          />
         </div>
       </main>
 

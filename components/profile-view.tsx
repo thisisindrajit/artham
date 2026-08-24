@@ -1,21 +1,34 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import type { ThinkingProfile } from "@/types/partner";
 import type { Scenario, SessionNotes } from "@/lib/story";
 import { PaperBackdrop } from "./paper-backdrop";
 import { buttonPrimary, card, cardSoft } from "@/constants/ui";
+import { thinkingProfileStorageKey } from "@/lib/thinking-profile-storage";
 
 /** The emotional payoff. Every claim carries the evidence that produced it. */
 export function ProfileView({
   scenario,
   profile,
   notes,
+  learnerId,
 }: {
   scenario: Scenario;
   profile: ThinkingProfile | null;
   notes: SessionNotes;
+  learnerId: string;
 }) {
+  useEffect(() => {
+    if (profile) {
+      window.localStorage.setItem(
+        thinkingProfileStorageKey(learnerId),
+        JSON.stringify(profile),
+      );
+    }
+  }, [learnerId, profile]);
+
   if (!profile) {
     return (
       <div
@@ -45,12 +58,18 @@ export function ProfileView({
       className="relative isolate min-h-dvh px-6 py-16"
     >
       <PaperBackdrop />
-      <div className="mx-auto w-full max-w-2xl space-y-12">
+      <div className="mx-auto w-full max-w-3xl space-y-10">
         <header
           className={`${card} animate-rise space-y-6 rounded-3xl px-7 py-10 text-center motion-reduce:animate-none sm:px-10`}
         >
+          <div
+            aria-hidden
+            className="mx-auto grid size-16 place-items-center rounded-[1.4rem] bg-accent/12 text-4xl shadow-[0_4px_0_rgb(var(--accent-rgb)/0.2)]"
+          >
+            🧠
+          </div>
           <p className="text-[13px] font-bold italic tracking-[0.18em] text-ink uppercase">
-            Here is how you played it
+            Your thinking pattern unlocked
           </p>
           <div className="space-y-2">
             <h1 className="text-4xl font-light tracking-tight text-ink">
@@ -63,58 +82,82 @@ export function ProfileView({
           </p>
         </header>
 
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Panel
-            eyebrow="What worked for you"
+            eyebrow="✨ Your superpower"
             title={profile.strength.title}
             body={profile.strength.evidence}
             accent="sage"
             delay={120}
           />
           <Panel
-            eyebrow="Where you got caught"
+            eyebrow="🧩 Your next unlock"
             title={profile.blindSpot.title}
             body={profile.blindSpot.evidence}
             accent="rose"
             delay={200}
           />
           <Panel
-            eyebrow="One interesting thing"
+            eyebrow="🔎 Artham noticed"
             title=""
             body={profile.noticed}
             accent="accent"
             delay={280}
           />
           <Panel
-            eyebrow="A fun next test"
+            eyebrow="🌱 To improve"
             title=""
-            body={profile.tryNext}
+            body={profile.blindSpot.evidence}
             accent="ink"
             delay={360}
           />
         </div>
 
+        <section className={`${card} animate-rise rounded-3xl px-6 py-7 motion-reduce:animate-none`}>
+          <p className="text-[12px] font-bold tracking-[0.2em] text-accent uppercase">
+            Small things Artham captured
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {profile.details.map((detail) => (
+              <article
+                key={`${detail.title}-${detail.evidence}`}
+                className="rounded-2xl border border-line bg-white/60 px-4 py-4"
+              >
+                <h2 className="text-[16px] font-semibold capitalize text-ink">
+                  {detail.title}
+                </h2>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-ink/75">
+                  {detail.observation}
+                </p>
+                <p className="mt-2 text-[13px] leading-relaxed text-faint">
+                  {detail.evidence}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <Evidence notes={notes} profile={profile} />
 
-        <footer className="animate-rise flex items-center justify-center gap-6 pt-4 motion-reduce:animate-none">
+        <footer className="animate-rise flex flex-wrap items-center justify-center gap-4 pt-4 motion-reduce:animate-none">
           <Link
-            href={`/play/${scenario.id}`}
+            href="/explore"
             data-press="deep"
             className={`${buttonPrimary} rounded-full px-6 py-3 text-[16px] font-medium`}
           >
-            Try it another way
+            Explore another story →
           </Link>
           <Link
-            href="/"
-            className="text-[16px] text-faint transition hover:text-muted"
+            href={scenario.playPath ?? `/play/${scenario.id}`}
+            className="rounded-full border border-ink/15 bg-white/75 px-6 py-3 text-[16px] font-medium text-muted transition hover:-translate-y-0.5 hover:text-ink"
           >
-            Find another story
+            ↻ Do this story again
           </Link>
         </footer>
 
         {profile.fallback && (
           <p className="text-center text-[13px] text-faint">
-            Built from your choices while the live partner was offline.
+            Built directly from the choices and revisions in this story.
           </p>
         )}
       </div>

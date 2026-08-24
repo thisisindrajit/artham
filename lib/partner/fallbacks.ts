@@ -143,6 +143,7 @@ export function fallbackProfile(req: ProfileRequest): ThinkingProfile {
     strength: archetype.strength,
     blindSpot: archetype.blindSpot,
     noticed: buildNoticed(n, stats),
+    details: buildDetails(n, stats),
     tryNext: archetype.tryNext,
     stats,
     fallback: true,
@@ -292,6 +293,57 @@ function pickArchetype(
     tryNext:
       "A scenario where the correct move isn't one of the offered options.",
   };
+}
+
+function buildDetails(
+  n: NotesDigest,
+  s: PartnerStats,
+): ThinkingProfile["details"] {
+  const details = n.observations.slice(-3).map((observation) => ({
+    title: observation.category.replaceAll("_", " "),
+    observation: observation.observation,
+    evidence: observation.evidence,
+  }));
+  if (n.reasoning.length > 0) {
+    const reasoning = n.reasoning[n.reasoning.length - 1];
+    details.push({
+      title: "Explained the move",
+      observation: "You put your reasoning into your own words.",
+      evidence: `“${truncate(reasoning.answer, 160)}”`,
+    });
+  }
+  if (n.experiments.length > 0) {
+    details.push({
+      title: "Worked the controls",
+      observation:
+        n.experiments.length > 1
+          ? "You compared multiple settings before settling."
+          : "You committed to one setting and checked its result.",
+      evidence: `Values tried: ${n.experiments.map((item) => item.value).join(" → ")}.`,
+    });
+  }
+  const defaults = [
+    {
+      title: "First moves",
+      observation: "Your opening choices reveal how quickly you commit.",
+      evidence: `${s.firstTryCorrect} of ${s.decisions} decisions worked on the first attempt.`,
+    },
+    {
+      title: "Changed course",
+      observation: "Corrections show what you do when the world pushes back.",
+      evidence: `${s.selfCorrections} self-correction${s.selfCorrections === 1 ? "" : "s"} recorded.`,
+    },
+    {
+      title: "Used support",
+      observation: "Hint use shows when you chose guidance over another guess.",
+      evidence: `${s.hintsUsed} hint${s.hintsUsed === 1 ? "" : "s"} used.`,
+    },
+  ];
+  for (const detail of defaults) {
+    if (details.length >= 3) break;
+    details.push(detail);
+  }
+  return details.slice(0, 6);
 }
 
 function buildNoticed(n: NotesDigest, s: PartnerStats): string {

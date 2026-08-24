@@ -11,6 +11,7 @@ export const DIFFICULTY_PIPS: Record<Scenario["difficulty"], number> = {
 };
 
 export const SCENE_EMOJI: Record<SceneVisualKind, string> = {
+  generated: "🖼️",
   bridge: "🌉",
   scan: "📈",
   resonance: "〰️",
@@ -49,5 +50,3 @@ export const DOMAIN_ORDER: Domain[] = [
 
 export const STORY_PARTS =
   /(“[^”]+”|\$?[\d][\d,.]*(?:\s?(?:a\.m\.|p\.m\.|Hz|°C|t|L|k|%)(?!\p{L}))?)/gu;
-
-export const RECENT_STORY_BEATS_ON_SMALL_SCREENS = 3;

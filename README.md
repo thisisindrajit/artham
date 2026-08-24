@@ -6,21 +6,23 @@ You solve a real problem inside a story. A learning partner watches how you appr
 
 ## The one architectural rule
 
-> **The story is deterministic. The partner isn't.**
+> **The playable story is deterministic. Generation happens asynchronously.**
 
-The story engine is a pure reducer with zero AI dependency. It decides what happens next, what's correct, and what the consequences are. The partner agent only *observes* and *guides* — it can never advance a scene, mark an answer, or change the UI.
+The story engine is a pure reducer with zero AI dependency. It decides what happens next, what's correct, and what the consequences are. A lightweight Gemini Flash partner analyzes activity progression during play and builds the final thinking profile; deterministic fallbacks preserve the same flow when it is unavailable.
 
-This means **the app is fully playable with the AI service switched off.** Every partner call has a deterministic fallback, so a cold model, a bad key, or a timeout degrades the experience instead of blocking it.
+Generated stories can place attributed, openly licensed Exa-discovered reference
+images beside plain-language explanations and a short “why this matters” note.
+Hovering, focusing, or touching a story card preloads its route and all story media.
+
+This means **the app remains playable when live AI guidance is unavailable.** The Python service adds live thinking analysis and generates new stories asynchronously.
 
 ```
-Next.js 16  (app/, lib/)          deterministic engine + UI
-     │
-     │  POST /api/partner/{prelude,observe,profile}   (server-side only)
-     ▼
-Python FastAPI + Google ADK  (agent/)                 one agent, three capabilities
-     │
-     ▼
-Gemini via Vertex AI / Gemini Enterprise
+FastAPI + Google ADK  (agent/artham_partner/story_pipeline)
+     ├── Gemini Flash live thinking analysis
+     ├── Exa topic research
+     ├── Gemini planning, writing, activities, validation, repair
+     ├── Vertex image / Veo / Lyria media generation
+     └── Backend API persistence
 ```
 
 ## Running it
@@ -31,12 +33,34 @@ You need **Node 20+** and **Python 3.10+**.
 
 ```bash
 npm install
+cp .env.example .env.local
+npm run auth:migrate   # create Better Auth's PostgreSQL tables
 npm run dev            # http://localhost:3000
 ```
 
-That's enough to play the whole scenario. Without the agent running, the partner uses its deterministic fallbacks and honestly labels itself `OFFLINE` in the UI.
+Create a Google OAuth web client and add
+`http://localhost:3000/api/auth/callback/google` as an authorized redirect URI.
+Set the matching production callback URI and `BETTER_AUTH_URL` when deploying.
 
-### 2. The partner agent (optional)
+Next.js reads generated stories server-side from `ARTHAM_BACKEND_BASE_URL`, which
+defaults to `http://127.0.0.1:8090` even when `.env.local` is absent. The optional
+partner service similarly defaults to `http://127.0.0.1:8080`; deterministic
+fallbacks keep authored stories playable when that service is unavailable.
+
+### 2. The backend
+
+```bash
+cd backend
+cp .env.example .env
+uv sync --extra dev
+uv run alembic upgrade head
+uv run fastapi dev app/main.py --host 127.0.0.1 --port 8090
+```
+
+The backend is required to list and play generated stories. Its API documentation
+is available at `http://127.0.0.1:8090/docs`.
+
+### 3. The story-generation pipeline (optional)
 
 ```bash
 cd agent
@@ -51,14 +75,8 @@ gcloud auth application-default login
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-Set at least these in `agent/.env`:
-
-```
-GOOGLE_GENAI_USE_VERTEXAI=TRUE
-GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=global
-ARTHAM_MODEL=gemini-flash-latest
-```
+Configure `agent/.env` from the supplied template, including Vertex AI, Exa,
+and backend service credentials.
 
 Then, from the repo root:
 
@@ -66,33 +84,32 @@ Then, from the repo root:
 npm run agent          # http://localhost:8080
 ```
 
-You can also inspect the observation agent with ADK's native developer tools:
+You can inspect the pipeline with ADK's native developer tools:
 
 ```bash
 cd agent
-.venv/bin/adk web artham_partner
+.venv/bin/adk web artham_partner/story_pipeline
 ```
+
+The service exposes the multi-agent story factory at `POST /story-jobs`.
+It validates every collated story and persists through backend APIs.
+See [the pipeline architecture](docs/story-generation-pipeline.md),
+[operations](docs/story-pipeline-operations.md), and the
+[backend contract](docs/backend-contracts.md).
 
 Check it picked up your credentials:
 
 ```bash
 curl localhost:8080/health
-# {"status":"ok", ..., "credentialsConfigured":true}
+# {"status":"ok", "vertexConfigured":true, ...}
 ```
-
-If `credentialsConfigured` is `false`, the agent still answers — the Next.js layer just falls back.
-
-Point the app at a non-default agent URL with `PARTNER_URL` (defaults to `http://127.0.0.1:8080`).
 
 ## Verifying
 
 ```bash
-npm run verify   # headless walkthrough of the story engine
 npm run lint
 npm run build
 ```
-
-`npm run verify` plays the scenario without a browser and asserts the things that are easy to break by hand: that every scene reference resolves, that no wrong answer dead-ends, that the slider physics actually matches the 0.25 Hz margin the story claims, that hints escalate but never exceed the ladder, that the AI call budget is capped, and that the offline profile never invents evidence.
 
 ## The AI call budget
 
@@ -110,14 +127,13 @@ Between 3 and 8 model calls per session, never per interaction:
 
 | Path | What lives there |
 | --- | --- |
-| `lib/story/` | Scenario content and types. Pure data. |
+| `lib/story/` | Scenario types and scene helpers. Pure data. |
 | `lib/engine/` | The deterministic reducer and the call-budget policy. No AI. |
 | `lib/partner/` | Wire contract, server-side client, and the deterministic fallbacks. |
 | `app/api/partner/` | Route handlers. The only place that talks to the agent. |
 | `components/` | The visual-novel UI. |
 | `agent/` | The Python ADK service. |
-| `scripts/` | The headless verifier. |
 
-## Adding a scenario
+## Adding a story
 
-Write one file in `lib/story/scenarios/`, register it in `lib/story/index.ts`, and run `npm run verify`. Each scene includes a small `visual` direction (`kind`, `title`, `caption`, and `status`) that drives the reactive story stage and provides the brief for future artwork. The engine, UI, partner, and profile all work off the scenario data — none of them need to change.
+Stories are generated by the ADK pipeline in `agent/` and served from the backend; the landing page lists whatever the backend has published. There are no hand-authored scenarios. Each generated scene carries its own `visual` direction (`kind`, `title`, `caption`, `status`) that drives the reactive story stage. The engine, UI, partner, and profile all work off the adapted scenario data — none of them need to change.

@@ -1,6 +1,7 @@
 import type { EngineEvent } from "@/lib/engine";
 import { requestObserve } from "@/lib/partner/client";
-import { hintForEvent, scenarioContext } from "@/utils/partner-context";
+import { resolveScenario } from "@/lib/resolve-scenario";
+import { hintForEvent, scenarioToContext } from "@/utils/partner-context";
 import type { NotesDigest } from "@/types/partner";
 
 export async function POST(request: Request) {
@@ -10,13 +11,15 @@ export async function POST(request: Request) {
     notes?: NotesDigest;
   };
 
-  const context = body.scenarioId ? scenarioContext(body.scenarioId) : null;
-  if (!context || !body.event || !body.notes) {
+  const scenario = body.scenarioId
+    ? await resolveScenario(body.scenarioId)
+    : null;
+  if (!scenario || !body.event || !body.notes) {
     return Response.json({ error: "Malformed observe request" }, { status: 400 });
   }
 
   const result = await requestObserve({
-    scenario: context,
+    scenario: scenarioToContext(scenario),
     event: body.event,
     notes: body.notes,
     fallbackHint: hintForEvent(body.event),

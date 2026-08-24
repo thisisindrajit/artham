@@ -10,6 +10,15 @@
  * `globals.css` hooks onto so anchors travel like buttons do.
  */
 
+/**
+ * The one horizontal rhythm every full-page surface shares.
+ *
+ * The header and the page body must use *this exact* string — same max width,
+ * same gutters — or the header's content edge drifts away from the content
+ * edge below it, which reads as a broken column on wide screens.
+ */
+export const pageShell = "mx-auto w-full max-w-6xl px-4 sm:px-6";
+
 /** The main reading card: a sheet of paper floating over the page. */
 export const card =
   "border border-ink/10 bg-white/95 shadow-[0_22px_55px_rgba(23,23,23,0.09),0_4px_14px_rgba(23,23,23,0.05)]";
@@ -63,9 +72,6 @@ export const capMarker = "-translate-y-[0.065em]";
 
 export const rangeInput =
   "h-[34px] w-full cursor-pointer appearance-none bg-transparent [--track:var(--color-line)] [&::-webkit-slider-runnable-track]:h-0.5 [&::-webkit-slider-runnable-track]:bg-[var(--track)] [&::-moz-range-track]:h-0.5 [&::-moz-range-track]:bg-[var(--track)] [&::-webkit-slider-thumb]:-mt-2 [&::-webkit-slider-thumb]:size-[18px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ink [&::-webkit-slider-thumb]:shadow-[0_0_0_6px_rgb(var(--accent-rgb)/0.18)] [&::-moz-range-thumb]:size-[18px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ink [&::-moz-range-thumb]:shadow-[0_0_0_6px_rgb(var(--accent-rgb)/0.18)]";
-
-export const storyStageTheme =
-  "[--color-ink:#f4f4f4] [--color-muted:#9a9a9a] [--color-faint:#575757] [--color-line:rgba(244,244,244,0.13)] [--color-primary:var(--accent-bright)] [--color-accent:var(--accent-bright)] [--accent-rgb:var(--accent-bright-rgb)] [--color-rose:#f0857c] [--color-sage:#8fc79a] text-[var(--color-ink)]";
 
 export const PILL_TONE_CLASSES = {
   rose: "bg-rose/12 text-rose",

@@ -42,7 +42,7 @@ export function PartnerCard({
   if (thinking) {
     return (
       <div
-        className={`${card} animate-slide-up rounded-2xl border-[1.5px] px-5 py-4 shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}
+        className={`${card} pointer-events-auto animate-slide-up rounded-2xl border-[1.5px] px-5 py-4 shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}
       >
         <span className="animate-pulse-soft text-[15px] text-muted motion-reduce:animate-none">
           Artham is thinking…
@@ -56,20 +56,14 @@ export function PartnerCard({
   }
 
   return (
-    <div className={`${card} animate-slide-up rounded-2xl border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}>
+    // `pointer-events-auto` because the sticky bar above this is
+    // `pointer-events-none`, so the story stays clickable behind it.
+    <div className={`${card} pointer-events-auto animate-slide-up rounded-2xl border-[1.5px] shadow-[0_5px_0_rgba(23,23,23,0.08),0_22px_48px_rgba(23,23,23,0.12)] motion-reduce:animate-none`}>
       <div className="flex items-start gap-4 px-5 py-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex items-center gap-2">
             <span className="text-[15px] font-bold italic text-ink">Artham</span>
             <Badge action={message.action} />
-            {message.fallback && (
-              <span
-                title="Generated without the model — the story's own guidance"
-                className="text-[12px] text-faint"
-              >
-                offline
-              </span>
-            )}
           </div>
           <p className="text-[16px] leading-relaxed text-ink/90">
             {message.message}
