@@ -50,6 +50,9 @@ class FakeObjectStorage:
     async def inspect(self, storage_key: str) -> ObjectMetadata:
         return self.objects[storage_key]
 
+    async def delete(self, storage_key: str) -> None:
+        self.objects.pop(storage_key, None)
+
 
 @pytest.fixture(scope="session")
 def database_engine(tmp_path_factory: pytest.TempPathFactory) -> Iterator[AsyncEngine]:

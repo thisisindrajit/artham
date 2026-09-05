@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import type { StoryBeatProps } from "@/types/components";
 import { StoryImage } from "@/components/story-image";
+import { buildGlossary } from "@/components/scenes/term-tooltip";
 import {
   ChoiceControls,
   EndingControls,
@@ -44,6 +46,10 @@ export function StoryBeat({
   const pending = live ? state.pending : null;
   const canReveal =
     Boolean(pending && !pending.correct) && failedAttempts.length >= 2;
+  const glossary = useMemo(
+    () => buildGlossary(scenario.scenes),
+    [scenario.scenes],
+  );
 
   return (
     <article
@@ -52,7 +58,11 @@ export function StoryBeat({
     >
       <StoryImage visual={scene.visual} />
       <SceneHeading scene={scene} />
-      <SceneBody scene={scene} />
+      <SceneBody
+        scene={scene}
+        citations={scenario.citations}
+        glossary={glossary}
+      />
 
       {failedAttempts.map((attempt, i) => (
         <OutcomeCard

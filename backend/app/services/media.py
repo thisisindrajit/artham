@@ -2,13 +2,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.exceptions import APIError
 from app.db.models import MediaAsset
-from app.schemas.media import SignedUpload, UploadIntent
+from app.schemas.media import JobMediaCleanupResult, SignedUpload, UploadIntent
 from app.services.hashing import canonical_hash
 from app.services.locks import advisory_transaction_lock
 from app.services.storage import ObjectStorage
@@ -113,4 +113,43 @@ async def create_upload_intent(
         public_url=asset.cdn_url,
         headers=headers,
         expires_at=now + timedelta(seconds=settings.upload_url_ttl_seconds),
+    )
+
+
+async def delete_job_media(
+    *,
+    session: AsyncSession,
+    storage: ObjectStorage,
+    job_id: str,
+) -> JobMediaCleanupResult:
+    """Delete every uncommitted media asset uploaded for a job.
+
+    Called when a generation job fails or is abandoned so orphaned uploads
+    do not accumulate in GCS/Postgres. Committed assets (already attached to
+    a persisted story) are never touched here.
+    """
+    async with session.begin():
+        await advisory_transaction_lock(session, f"upload:{job_id}")
+        assets = list(
+            await session.scalars(
+                select(MediaAsset).where(MediaAsset.job_id == job_id)
+            )
+        )
+        deletable = [a for a in assets if a.commit_state == "uncommitted"]
+        skipped_committed = len(assets) - len(deletable)
+
+        for asset in deletable:
+            await storage.delete(asset.storage_key)
+
+        if deletable:
+            await session.execute(
+                delete(MediaAsset).where(
+                    MediaAsset.id.in_([a.id for a in deletable])
+                )
+            )
+
+    return JobMediaCleanupResult(
+        job_id=job_id,
+        deleted_assets=len(deletable),
+        skipped_committed_assets=skipped_committed,
     )

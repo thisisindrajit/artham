@@ -1,5 +1,5 @@
 import { buttonPrimary, storyTag } from "@/constants/ui";
-import { DIFFICULTY_PIPS } from "@/constants/story";
+import { DIFFICULTY_PIPS, DOMAIN_LABELS } from "@/constants/story";
 import type { SessionIntroProps } from "@/types/components";
 import { Narration } from "@/components/scenes";
 import { StoryImage } from "@/components/story-image";
@@ -18,6 +18,28 @@ import { StoryImage } from "@/components/story-image";
  */
 export function SessionIntro({ scenario, started, onBegin }: SessionIntroProps) {
   const pips = DIFFICULTY_PIPS[scenario.difficulty];
+  const role = scenario.intro.role.trim();
+  const blurb = scenario.blurb.trim();
+  const escapedRole = role.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const roleLead = new RegExp(
+    `^You are the ${escapedRole}\\.\\s*(?:Take charge as the ${escapedRole}\\.?\\s*)?`,
+    "i",
+  );
+  const compactBlurb = blurb.replace(roleLead, "").trim();
+  const roleWords = role
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length >= 5);
+  const mentionsRole = roleWords.some((word) =>
+    new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(
+      compactBlurb,
+    ),
+  );
+  const introSummary = compactBlurb
+    ? mentionsRole
+      ? compactBlurb
+      : `You are the ${role}. ${compactBlurb}`
+    : `You are the ${role}.`;
 
   return (
     <section className="space-y-8">
@@ -26,7 +48,7 @@ export function SessionIntro({ scenario, started, onBegin }: SessionIntroProps) 
           <span
             className={`${storyTag} inline-flex rounded-full px-3 py-1 text-[12.5px] font-bold italic tracking-[0.14em] uppercase`}
           >
-            {scenario.domain}
+            {DOMAIN_LABELS[scenario.domain]}
           </span>
           <span className="text-[12.5px] font-semibold tracking-[0.08em] text-ink/60 capitalize">
             {scenario.topic ?? scenario.takeaway.field}
@@ -44,7 +66,7 @@ export function SessionIntro({ scenario, started, onBegin }: SessionIntroProps) 
           {scenario.title}
         </h1>
         <p className="text-[17px] leading-[1.6] text-ink/75">
-          You are the {scenario.intro.role}. {scenario.blurb}
+          {introSummary}
         </p>
       </div>
 

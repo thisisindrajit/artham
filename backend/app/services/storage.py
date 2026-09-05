@@ -46,6 +46,8 @@ class ObjectStorage(Protocol):
 
     async def inspect(self, storage_key: str) -> ObjectMetadata: ...
 
+    async def delete(self, storage_key: str) -> None: ...
+
 
 class GCSObjectStorage:
     def __init__(
@@ -151,6 +153,21 @@ class GCSObjectStorage:
                 status_code=503,
                 code="OBJECT_STORAGE_UNAVAILABLE",
                 message="Google Cloud Storage could not read the media asset.",
+                retryable=True,
+            ) from exc
+
+    async def delete(self, storage_key: str) -> None:
+        blob = self._bucket.blob(storage_key)
+        try:
+            await to_thread.run_sync(blob.delete)
+        except NotFound:
+            # Already gone (or never uploaded) - deleting is idempotent.
+            return
+        except (GoogleAPIError, GoogleAuthError) as exc:
+            raise APIError(
+                status_code=503,
+                code="OBJECT_STORAGE_UNAVAILABLE",
+                message="Google Cloud Storage could not delete the media asset.",
                 retryable=True,
             ) from exc
 

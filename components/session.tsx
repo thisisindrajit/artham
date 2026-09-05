@@ -13,6 +13,7 @@ import { StoryFlow } from "./session/story-flow";
 import { BackgroundAudio } from "./background-audio";
 import type { AuthUser } from "./auth/user-avatar";
 import { AppHeader } from "./app-header";
+import { pageShell } from "@/constants/ui";
 
 /**
  * A story session: one long story column, one context column.
@@ -78,7 +79,7 @@ export function Session({ scenario, user }: { scenario: Scenario; user: AuthUser
         }}
       />
 
-      <main className="relative mx-auto grid w-full max-w-[1180px] flex-1 items-start gap-8 px-5 pt-10 pb-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:gap-9">
+      <main className={`${pageShell} relative grid flex-1 items-start gap-8 pt-10 pb-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:gap-9`}>
         <div
           className="mx-auto w-full max-w-2xl min-w-0 pb-[var(--session-bar)] lg:max-w-none"
         >
@@ -99,7 +100,7 @@ export function Session({ scenario, user }: { scenario: Scenario; user: AuthUser
           its height — otherwise the partner card lands on top of the button
           the learner is being asked to press. */}
       <div ref={barRef} className="pointer-events-none sticky bottom-0 z-10 pb-5">
-        <div className="mx-auto grid w-full max-w-[1180px] gap-3 px-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:gap-9">
+        <div className={`${pageShell} grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:gap-9`}>
           {/* Stretched, not `items-start`: the partner card is a panel and
               should match the story column. Only the sheet trigger is a pill,
               so it opts out with `self-start`. */}

@@ -76,7 +76,7 @@ export function useStorySession(scenario: Scenario) {
     })
       .then((response) => response.json())
       .then((data: PreludeResponse) => {
-        if (live && data?.question?.options?.length) setPrelude(data);
+        if (live && data?.question?.prompt) setPrelude(data);
       })
       .catch(() => {
         // The deterministic scenario prelude remains available as a fallback.

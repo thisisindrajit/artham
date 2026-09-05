@@ -34,7 +34,7 @@ export function ChoiceControls({
       <div className="space-y-3">
         <span className={`${storyTag} animate-rise inline-flex rounded-full px-3 py-1 text-[13px] font-bold italic motion-reduce:animate-none`}>
           <span aria-hidden className="mr-1.5 not-italic">🎯</span>
-          Your move
+          Quiz
         </span>
         <h2 className="animate-rise text-[21px] font-bold tracking-tight text-ink motion-reduce:animate-none">
           <StoryCopy text={scene.prompt} />

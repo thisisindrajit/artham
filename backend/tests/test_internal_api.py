@@ -11,7 +11,9 @@ from app.db.models import (
     Learner,
     LearnerPreferenceTag,
     LearnerStoryEngagement,
+    MediaAsset,
 )
+from tests.conftest import FakeObjectStorage
 
 
 def test_internal_routes_require_service_authentication(client: TestClient) -> None:
@@ -146,6 +148,92 @@ def test_upload_intent_is_strict_and_idempotent(
     assert conflict.json()["error"]["code"] == "UPLOAD_INTENT_CONFLICT"
 
 
+def test_delete_media_by_job_removes_only_uncommitted_assets(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    object_storage: FakeObjectStorage,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    orphan_intent = {
+        "job_id": "job-failed",
+        "asset_key": "scene-a-image",
+        "kind": "image",
+        "content_type": "image/webp",
+        "byte_size": 200,
+        "sha256": "d" * 64,
+    }
+    orphan_upload = client.post(
+        "/v1/internal/media/upload-intents",
+        headers=auth_headers,
+        json=orphan_intent,
+    )
+    assert orphan_upload.status_code == 200
+    orphan_storage_key = next(iter(object_storage.objects))
+    assert orphan_storage_key in object_storage.objects
+
+    committed_intent = {
+        "job_id": "job-succeeded",
+        "asset_key": "scene-opening",
+        "kind": "image",
+        "content_type": "image/webp",
+        "byte_size": 100,
+        "sha256": "c" * 64,
+    }
+    committed_upload = client.post(
+        "/v1/internal/media/upload-intents",
+        headers=auth_headers,
+        json=committed_intent,
+    )
+    assert committed_upload.status_code == 200
+    committed_storage_key = next(
+        key
+        for key in object_storage.objects
+        if key != orphan_storage_key
+    )
+
+    async def mark_committed() -> None:
+        async with session_factory.begin() as session:
+            asset = await session.get(MediaAsset, committed_upload.json()["asset_id"])
+            asset.commit_state = "committed"
+
+    asyncio.run(mark_committed())
+
+    orphan_cleanup = client.delete(
+        "/v1/internal/media/by-job/job-failed",
+        headers=auth_headers,
+    )
+    assert orphan_cleanup.status_code == 200
+    assert orphan_cleanup.json() == {
+        "job_id": "job-failed",
+        "deleted_assets": 1,
+        "skipped_committed_assets": 0,
+    }
+    assert orphan_storage_key not in object_storage.objects
+
+    committed_cleanup = client.delete(
+        "/v1/internal/media/by-job/job-succeeded",
+        headers=auth_headers,
+    )
+    assert committed_cleanup.status_code == 200
+    assert committed_cleanup.json() == {
+        "job_id": "job-succeeded",
+        "deleted_assets": 0,
+        "skipped_committed_assets": 1,
+    }
+    assert committed_storage_key in object_storage.objects
+
+    empty_cleanup = client.delete(
+        "/v1/internal/media/by-job/job-never-existed",
+        headers=auth_headers,
+    )
+    assert empty_cleanup.status_code == 200
+    assert empty_cleanup.json() == {
+        "job_id": "job-never-existed",
+        "deleted_assets": 0,
+        "skipped_committed_assets": 0,
+    }
+
+
 def test_persists_story_atomically_and_replays_receipt(
     client: TestClient,
     auth_headers: dict[str, str],
@@ -172,6 +260,23 @@ def test_persists_story_atomically_and_replays_receipt(
     assert upload.status_code == 200
 
     write = _story_write(upload.json())
+    fact = "The bridge moves most strongly when a repeated push matches its natural rhythm."
+    scene = write["bundle"]["storyline"]["scenes"][0]
+    scene["reference_subject"] = "Bridge"
+    scene["reference_fact"] = fact
+    scene["reference_fact_citation_refs"] = [1]
+    scene["learning_reference"] = {
+        "title": "A bridge in motion",
+        "image_url": "https://example.test/bridge.jpg",
+        "source_page_url": "https://example.test/bridge",
+        "source_name": "Bridge archive",
+        "license_name": "Public domain",
+        "license_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "alt_text": "A bridge spanning a river.",
+        "plain_explanation": fact,
+        "why_important": fact,
+        "citation_refs": [1],
+    }
     headers = {**auth_headers, "Idempotency-Key": write["idempotency_key"]}
     first = client.post(
         "/v1/internal/generated-stories",
@@ -198,6 +303,11 @@ def test_persists_story_atomically_and_replays_receipt(
     assert listed.status_code == 200
     assert listed.json()[0]["story_id"] == "resonance-story"
     assert read.status_code == 200
+    persisted_scene = read.json()["bundle"]["storyline"]["scenes"][0]
+    assert persisted_scene["reference_fact"] == fact
+    assert persisted_scene["reference_fact_citation_refs"] == [1]
+    assert persisted_scene["learning_reference"]["plain_explanation"] == fact
+    assert persisted_scene["learning_reference"]["citation_refs"] == [1]
     assert read.json()["media_urls"]["scene-opening"].endswith(
         "/api/v1/stories/resonance-story/media/scene-opening"
     )

@@ -53,10 +53,16 @@ def settings() -> PipelineSettings:
         vertex_media_location="us-central1",
         pipeline_model="test-model",
         fast_model="test-fast-model",
+        critic_model="test-critic-model",
+        topic_model="test-topic-model",
+        session_database_url="sqlite+aiosqlite:////tmp/artham-agent-tests.db",
         image_model="test-image",
         veo_model="test-veo",
         lyria_model="test-lyria",
         embedding_model="test-embedding",
+        openai_api_key="test-openai",
+        openrouter_api_key="test-openrouter",
+        openrouter_base_url="https://openrouter.test/api/v1",
         exa_api_key="test-exa",
         exa_base_url="https://api.exa.test",
         backend_base_url="https://backend.test",
@@ -244,6 +250,13 @@ def bundle() -> GeneratedStoryBundle:
             beat="The reversal",
             hints=["Change one condition.", "Watch what fails first.", "Test the fix under stress."],
             concept="Robustness",
+            primer=[
+                ScenePrimer(
+                    term="Robustness",
+                    plain="Robustness means a system keeps working when conditions change.",
+                    like="a backpack that stays useful in light rain.",
+                )
+            ],
             trivia=SceneTrivia(
                 emoji="✅",
                 title="One change speaks",
@@ -382,6 +395,7 @@ def bundle() -> GeneratedStoryBundle:
                         SimulationControl(
                             control_id="input",
                             label="Input",
+                            description="Changes the strength of the incoming signal.",
                             minimum=0,
                             maximum=10,
                             step=1,
@@ -390,6 +404,7 @@ def bundle() -> GeneratedStoryBundle:
                         SimulationControl(
                             control_id="gain",
                             label="Amplifier gain",
+                            description="Changes how strongly the signal is amplified.",
                             minimum=1,
                             maximum=3,
                             step=1,
@@ -492,6 +507,7 @@ def bundle() -> GeneratedStoryBundle:
                         SimulationControl(
                             control_id="stress",
                             label="Stress",
+                            description="Changes the load pressing on the system.",
                             minimum=0,
                             maximum=10,
                             step=1,
@@ -500,6 +516,7 @@ def bundle() -> GeneratedStoryBundle:
                         SimulationControl(
                             control_id="support",
                             label="Support",
+                            description="Changes how much support resists the load.",
                             minimum=0,
                             maximum=10,
                             step=1,

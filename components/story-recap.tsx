@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PlayState } from "@/lib/engine";
 import type { Scenario } from "@/lib/story";
-import { storyEmoji } from "@/utils/story-visual";
 
 /**
  * "The story so far."
@@ -53,7 +52,6 @@ export function StoryRecap({
         id: sceneId,
         beat: scene.beat,
         act: scene.act,
-        emoji: storyEmoji(scene.visual.kind),
         context: scene.visual.caption,
         decision,
         experiment,
@@ -88,13 +86,10 @@ export function StoryRecap({
             The situation
           </p>
           <p className="mt-2 text-[17px] leading-[1.45] font-semibold text-ink">
-            <span aria-hidden className="mr-2">
-              {storyEmoji(scenario.intro.visual.kind)}
-            </span>
-            {scenario.intro.visual.caption}
+            {scenario.scenes[0]?.beat ?? scenario.title}
           </p>
           <p className="mt-2 text-[13px] leading-[1.45] text-ink/60">
-            {scenario.intro.visual.status}
+            Opening chapter
           </p>
         </div>
 
@@ -193,9 +188,6 @@ export function StoryRecap({
                       : "flex items-start gap-1.5 text-[14.5px] leading-[1.4] font-semibold text-ink/70"
                   }
                 >
-                  <span aria-hidden className="shrink-0 not-italic">
-                    {entry.emoji}
-                  </span>
                   <span>{entry.beat}</span>
                 </p>
                 <p className="mt-1 text-[13px] leading-[1.45] text-ink/65">

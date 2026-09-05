@@ -14,6 +14,7 @@ from ..contracts import (
     AssetReference,
     BackendStoryWrite,
     EngagementProfile,
+    JobMediaCleanupResult,
     PersistenceReceipt,
     SignedUpload,
     UploadIntent,
@@ -117,6 +118,16 @@ class BackendClient:
             raise BackendError(
                 f"Signed upload returned status {upload_response.status_code}"
             )
+        if not upload_response.headers.get("etag"):
+            # GCS always returns an ETag when a PUT actually commits the
+            # object. Its absence means the 2xx response did not correspond
+            # to a real write, so surface this as a failure now instead of
+            # discovering an unusable asset reference at persistence time.
+            raise BackendError(
+                "Signed upload returned status "
+                f"{upload_response.status_code} without an ETag; the object "
+                "was not confirmed written to storage"
+            )
 
         return AssetReference(
             asset_id=signed.asset_id,
@@ -151,6 +162,27 @@ class BackendClient:
                 f"{response.status_code}: {response.text[:500]}"
             )
         return PersistenceReceipt.model_validate(response.json())
+
+    async def delete_job_assets(self, job_id: str) -> JobMediaCleanupResult:
+        """Delete every uncommitted media asset uploaded for a job.
+
+        Called when a story job fails or is cancelled so orphaned uploads do
+        not accumulate in GCS/Postgres. Best-effort from the caller's
+        perspective: raises BackendError on failure so callers can log a
+        warning without letting cleanup mask the original job outcome.
+        """
+        response = await request_with_retries(
+            self._http,
+            "DELETE",
+            self._url(f"/v1/internal/media/by-job/{job_id}"),
+            headers=self._headers(),
+        )
+        if response.status_code >= 400:
+            raise BackendError(
+                "Backend media cleanup returned status "
+                f"{response.status_code}: {response.text[:500]}"
+            )
+        return JobMediaCleanupResult.model_validate(response.json())
 
     def _url(self, path: str) -> str:
         if not self._settings.backend_base_url:

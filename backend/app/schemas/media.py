@@ -27,3 +27,9 @@ class SignedUpload(ContractModel):
     public_url: HttpUrl
     headers: dict[str, str] = Field(default_factory=dict)
     expires_at: datetime
+
+
+class JobMediaCleanupResult(ContractModel):
+    job_id: str
+    deleted_assets: int = Field(ge=0)
+    skipped_committed_assets: int = Field(ge=0)

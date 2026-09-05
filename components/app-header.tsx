@@ -22,7 +22,7 @@ export function AppHeader({
       >
         <Link
           href={user ? "/dashboard" : "/"}
-          className="group inline-flex min-w-0 items-center gap-4"
+          className="group inline-flex shrink-0 items-center gap-4"
         >
           <ArthamMark
             size={28}
@@ -51,6 +51,12 @@ export function AppHeader({
             className="rounded-full px-3 py-2 transition hover:bg-ink/[0.06] hover:text-ink"
           >
             Explore
+          </Link>
+          <Link
+            href="/create"
+            className="rounded-full px-3 py-2 transition hover:bg-ink/[0.06] hover:text-ink"
+          >
+            Create story
           </Link>
         </nav>
 

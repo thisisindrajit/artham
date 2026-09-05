@@ -82,10 +82,15 @@ export function StoryFlow({
           return (
             <div
               key={scene.id}
-              ref={live ? liveRef : undefined}
-              className="space-y-12"
+              ref={live && !newChapter ? liveRef : undefined}
+              className="scroll-mt-28 space-y-12"
             >
-              {newChapter && <ChapterRule act={scene.act} />}
+              {newChapter && (
+                <ChapterRule
+                  act={scene.act}
+                  anchorRef={live ? liveRef : undefined}
+                />
+              )}
               <StoryBeat
                 scenario={scenario}
                 state={state}
@@ -131,9 +136,19 @@ function playedBeats(
 }
 
 /** A visible seam between acts, so a long page still has three chapters in it. */
-function ChapterRule({ act }: { act: 1 | 2 | 3 }) {
+function ChapterRule({
+  act,
+  anchorRef,
+}: {
+  act: 1 | 2 | 3;
+  anchorRef?: React.Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="flex items-center gap-4" role="separator">
+    <div
+      ref={anchorRef}
+      className="flex scroll-mt-28 items-center gap-4"
+      role="separator"
+    >
       <span className="h-px flex-1 bg-line" />
       <span className="text-[11.5px] font-extrabold tracking-[0.2em] text-ink/45 uppercase">
         Chapter {act}

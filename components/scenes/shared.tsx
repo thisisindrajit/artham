@@ -1,40 +1,47 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import rehypeKatex from "rehype-katex";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { STORY_PARTS } from "@/constants/story";
 import { storyEmoji } from "@/utils/story-visual";
+import { remarkStoryDialogue } from "@/utils/story-markdown";
 import { StorySimulation } from "@/components/story-simulation";
+import { MermaidDiagram } from "@/components/scenes/mermaid-diagram";
+import {
+  annotateTerms,
+  type GlossaryEntry,
+} from "@/components/scenes/term-tooltip";
 import type {
   Scene,
   ScenePrimer,
   SceneLearningReference,
   SceneTrivia,
+  StoryCitation,
   StoryTakeaway,
 } from "@/lib/story";
 
 /**
  * The story copy already contains the authorial cues we need. Dialogue gets
- * an italic voice; measurements and times become bold anchors. This keeps the
+ * a bold italic voice; measurements and times become underlined bold anchors. This keeps the
  * prose expressive without adding markup to every authored story line.
  */
 export function StoryCopy({ text }: { text: string }) {
   return (
     <>
       {text.split(STORY_PARTS).map((part, index) => {
-        if (part.startsWith("“")) {
+        if (part.startsWith("“") || part.startsWith('"')) {
           return (
-            <em key={index} className="font-semibold italic text-ink">
+            <em key={index} className="font-extrabold italic text-ink">
               {part}
             </em>
           );
         }
         if (/^\$?\d/.test(part)) {
           return (
-            <strong key={index} className="font-extrabold tracking-tight text-ink">
+            <strong key={index} className="font-extrabold tracking-tight text-ink underline underline-offset-4">
               {part}
             </strong>
           );
@@ -45,9 +52,54 @@ export function StoryCopy({ text }: { text: string }) {
   );
 }
 
-export function Narration({ text }: { text: string[] }) {
+/**
+ * Small numbered links to the story's supporting sources, in the style of a
+ * research-paper footnote: "[1]" opens the cited source in a new tab.
+ *
+ * Renders nothing when there are no refs or no citations to resolve them
+ * against, so it is safe to drop into any scene/trivia unconditionally.
+ */
+export function CitationMarks({
+  refs,
+  citations,
+}: {
+  refs?: number[];
+  citations?: StoryCitation[];
+}) {
+  if (!refs?.length || !citations?.length) return null;
+  const valid = refs.filter((ref) => citations[ref - 1]);
+  if (!valid.length) return null;
   return (
-    <div className="space-y-4">
+    <span className="ml-1 inline-flex gap-1 align-super text-[11px] font-semibold text-accent">
+      {valid.map((ref) => (
+        <a
+          key={ref}
+          href={citations[ref - 1].url}
+          target="_blank"
+          rel="noreferrer"
+          title={citations[ref - 1].sourceName ?? citations[ref - 1].title}
+          className="hover:underline"
+        >
+          [{ref}]
+        </a>
+      ))}
+    </span>
+  );
+}
+
+export function Narration({
+  text,
+  glossary,
+}: {
+  text: string[];
+  /** Key terms to annotate with a plain-words tooltip on first mention. */
+  glossary?: GlossaryEntry[];
+}) {
+  const seen = new Set<string>();
+  const annotate = (children: ReactNode) =>
+    glossary?.length ? annotateTerms(children, glossary, seen) : children;
+  return (
+    <div className="story-prose space-y-4">
       {text.map((line, i) => (
         <div
           key={i}
@@ -55,34 +107,40 @@ export function Narration({ text }: { text: string[] }) {
           style={{ animationDelay: `${i * 110}ms` }}
         >
           <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath, remarkStoryDialogue]}
             rehypePlugins={[rehypeKatex]}
             skipHtml
             components={{
               p: ({ children }) => (
                 <p
-                  className={`mb-4 text-[17px] leading-[1.7] text-ink/85 last:mb-0 ${
-                    i === 0 ? "font-medium" : ""
-                  }`}
+                  className="mb-4 text-[17px] font-normal leading-[1.7] text-ink/85 last:mb-0"
                 >
-                  {children}
+                  {annotate(children)}
                 </p>
               ),
               strong: ({ children }) => (
-                <strong className="font-extrabold tracking-tight text-ink">
+                <strong className={`tracking-tight text-ink ${
+                  typeof children === "string" && /^[“"]/.test(children.trim())
+                    ? "story-dialogue" : ""
+                }`}>
                   {children}
                 </strong>
               ),
               em: ({ children }) => (
-                <em className="font-semibold italic text-ink">{children}</em>
+                <em className="text-ink">{children}</em>
+              ),
+              h1: ({ children }) => (
+                <h2 className="mt-7 mb-3 text-[26px] font-semibold tracking-tight text-ink capitalize">
+                  {children}
+                </h2>
               ),
               h2: ({ children }) => (
-                <h2 className="mt-7 mb-3 text-[24px] font-semibold tracking-tight text-ink">
+                <h2 className="mt-7 mb-3 text-[24px] font-semibold tracking-tight text-ink capitalize">
                   {children}
                 </h2>
               ),
               h3: ({ children }) => (
-                <h3 className="mt-6 mb-2 text-[20px] font-semibold tracking-tight text-ink">
+                <h3 className="mt-6 mb-2 text-[20px] font-semibold tracking-tight text-ink capitalize">
                   {children}
                 </h3>
               ),
@@ -128,6 +186,31 @@ export function Narration({ text }: { text: string[] }) {
                   {children}
                 </a>
               ),
+              code: ({ className, children }) => {
+                const isMermaid = /language-mermaid/.test(className ?? "");
+                if (isMermaid) {
+                  return <MermaidDiagram chart={String(children)} />;
+                }
+                return (
+                  <code className={`${className ?? ""} rounded bg-ink/[0.06] px-1.5 py-0.5 text-[14px] text-ink`}>
+                    {children}
+                  </code>
+                );
+              },
+              pre: ({ children, node }) => {
+                const diagram = node?.children.some(
+                  (child) =>
+                    child.type === "element" &&
+                    child.tagName === "code" &&
+                    Array.isArray(child.properties.className) &&
+                    child.properties.className.includes("language-mermaid"),
+                );
+                return diagram ? <>{children}</> : (
+                  <pre className="my-5 overflow-x-auto rounded-xl border border-line bg-ink/[0.04] p-4 leading-relaxed [&>code]:block [&>code]:bg-transparent [&>code]:p-0">
+                    {children}
+                  </pre>
+                );
+              },
             }}
           >
             {line}
@@ -138,16 +221,6 @@ export function Narration({ text }: { text: string[] }) {
   );
 }
 
-/**
- * The micro-lesson card.
- *
- * A story earns the right to say "marker" or "resonance" only after this card
- * has said what the word means without any other jargon in the sentence. It is
- * pinned into the flow rather than hidden behind a tooltip: a learner who has
- * to hunt for the definition has already lost the thread.
- *
- * Sized to sit inside the existing sheet — it adds a block, never width.
- */
 export function PrimerCard({
   primer,
   delay = 0,
@@ -156,33 +229,37 @@ export function PrimerCard({
   delay?: number;
 }) {
   const list = Array.isArray(primer) ? primer : [primer];
+  if (list.length === 0) return null;
+
   return (
-    <div className="space-y-5">
-      {list.map((item, i) => (
-        <aside
-          key={item.term}
-          className="animate-rise relative -rotate-[0.4deg] rounded-2xl border-[1.5px] border-dashed border-accent/50 bg-accent/[0.07] px-5 pt-5 pb-4 shadow-[0_3px_0_rgb(var(--accent-rgb)/0.14),0_10px_24px_rgb(var(--accent-rgb)/0.08)] motion-reduce:animate-none"
-          style={{ animationDelay: `${delay + i * 140}ms` }}
-        >
-          <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-accent/50 bg-white px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink/70">
-            <span aria-hidden>💡</span>
-            In plain words
-          </span>
-          <p className="text-[16px] leading-[1.6] text-ink/85">
-            <strong className="font-extrabold italic tracking-tight text-ink">
-              {item.term}
-            </strong>
-            {" — "}
-            {item.plain}
-          </p>
-          {item.like && (
-            <p className="mt-2 text-[15px] italic leading-[1.55] text-ink/70">
-              Think of it like {item.like}
+    <aside
+      className="animate-rise rounded-2xl border border-accent/25 bg-accent/[0.05] px-4 py-3 motion-reduce:animate-none"
+      style={{ animationDelay: `${delay}ms` }}
+      aria-label="In plain words"
+    >
+      <p className="mb-3 text-[15px] font-bold tracking-wide text-ink/70 capitalize">
+        In plain words
+      </p>
+      <div className="space-y-3">
+        {list.map((item) => (
+          <div
+            key={item.term}
+            className="rounded-xl border border-accent/20 bg-white/70 px-3.5 py-3"
+          >
+            <h3 className="text-[18px] font-bold text-ink capitalize">{item.term}</h3>
+            <p className="mt-1 text-[15px] leading-[1.6] text-ink/75">
+              {item.plain}
             </p>
-          )}
-        </aside>
-      ))}
-    </div>
+            {item.like && (
+              <p className="mt-1.5 text-[14px] leading-[1.5] text-ink/65">
+                <span className="font-semibold text-ink/70">Example:</span>{" "}
+                {item.like}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </aside>
   );
 }
 
@@ -203,7 +280,7 @@ export function SceneHeading({
 }) {
   return (
     <p
-      className={`animate-rise flex items-center gap-2 text-[13px] font-extrabold tracking-[0.14em] text-ink/55 uppercase motion-reduce:animate-none ${className}`}
+      className={`animate-rise flex items-center gap-2 text-[18px] font-extrabold tracking-wide text-ink/70 capitalize motion-reduce:animate-none ${className}`}
     >
       <span aria-hidden className="text-[17px] leading-none">
         {storyEmoji(scene.visual.kind)}
@@ -219,40 +296,52 @@ export function SceneHeading({
  * Deliberately the only block on the page a learner may skip with nothing
  * lost. It exists to buy a breath between decisions and to make the world feel
  * inhabited — the siege engine really was built, the bridge really did fall.
- * Styled unlike the primer on purpose: dashed orange means "you need this",
- * this soft slate card means "enjoy this".
+ * A warm amber surface distinguishes optional trivia from the lesson cards.
  */
 export function TriviaCard({
   trivia,
+  citations,
   delay = 0,
 }: {
   trivia: SceneTrivia;
+  citations?: StoryCitation[];
   delay?: number;
 }) {
   return (
     <aside
-      className="animate-rise relative rotate-[0.35deg] rounded-2xl border-[1.5px] border-ink/12 bg-ink/[0.035] px-5 pt-5 pb-4 shadow-[0_3px_0_rgba(23,23,23,0.05)] motion-reduce:animate-none"
+      className="animate-rise relative rotate-[0.35deg] rounded-2xl border-[1.5px] border-amber-300 bg-amber-50 px-5 pt-6 pb-4 shadow-[0_3px_0_rgba(217,119,6,0.12)] motion-reduce:animate-none"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-ink/15 bg-white px-2.5 py-0.5 text-[11px] font-bold tracking-[0.14em] text-ink/60 uppercase">
+      <span className="absolute -top-3 left-5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-amber-300 bg-amber-100 px-2.5 py-0.5 text-[14px] font-bold tracking-wide text-amber-950 capitalize">
         <span aria-hidden>{trivia.emoji}</span>
         Did you know
       </span>
-      <p className="text-[15px] leading-[1.6] text-ink/80">
-        <strong className="font-extrabold tracking-tight text-ink italic">
+      <div className="text-[15px] leading-[1.6] text-ink/80">
+        <h3 className="mb-1 text-[18px] font-extrabold tracking-tight text-ink capitalize">
           {trivia.title}
-        </strong>
-        {" — "}
-        <StoryCopy text={trivia.text} />
-      </p>
+        </h3>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+          skipHtml
+          components={{
+            p: ({ children }) => <span>{children}</span>,
+          }}
+        >
+          {trivia.text}
+        </ReactMarkdown>
+        <CitationMarks refs={trivia.citationRefs} citations={citations} />
+      </div>
     </aside>
   );
 }
 
 export function LearningReferenceCard({
   reference,
+  citations,
 }: {
   reference: SceneLearningReference;
+  citations?: StoryCitation[];
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   return (
@@ -277,16 +366,13 @@ export function LearningReferenceCard({
         )}
       </div>
       <div className="space-y-3 border-t border-sage/20 px-5 py-4">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-sage uppercase">
+        <p className="text-[15px] font-bold tracking-wide text-sage capitalize">
           See the real thing
         </p>
-        <h3 className="text-[18px] font-semibold text-ink">{reference.title}</h3>
+        <h3 className="text-[20px] font-semibold text-ink capitalize">{reference.title}</h3>
         <p className="text-[16px] leading-relaxed text-ink/80">
           {reference.plainExplanation}
-        </p>
-        <p className="rounded-xl bg-white/70 px-4 py-3 text-[15px] leading-relaxed text-ink/75">
-          <strong className="text-ink">Why this matters:</strong>{" "}
-          {reference.whyImportant}
+          <CitationMarks refs={reference.citationRefs} citations={citations} />
         </p>
         <p className="text-[12px] leading-relaxed text-faint">
           Source:{" "}
@@ -333,12 +419,12 @@ export function TakeawayCard({
       className="animate-rise relative rounded-2xl border-[1.5px] border-accent/45 bg-accent/[0.06] px-6 pt-7 pb-6 shadow-[0_5px_0_rgb(var(--accent-rgb)/0.16),0_18px_38px_rgb(var(--accent-rgb)/0.10)] motion-reduce:animate-none"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <span className="absolute -top-3 left-6 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-accent/45 bg-white px-2.5 py-0.5 text-[11px] font-bold tracking-[0.14em] text-ink/70 uppercase">
+      <span className="absolute -top-3 left-6 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-accent/45 bg-white px-2.5 py-0.5 text-[14px] font-bold tracking-wide text-ink/70 capitalize">
         <span aria-hidden>🧠</span>
         What you now know
       </span>
 
-      <h3 className="text-[23px] leading-[1.2] font-extrabold tracking-tight text-ink italic">
+      <h3 className="text-[23px] leading-[1.2] font-extrabold tracking-tight text-ink capitalize">
         {takeaway.concept}
       </h3>
       <p className="mt-1 text-[13px] font-bold tracking-[0.14em] text-ink/70 uppercase">
@@ -362,7 +448,7 @@ export function TakeawayCard({
 function TakeawayList({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="mt-6">
-      <p className="text-[12.5px] font-extrabold tracking-[0.16em] text-ink/70 uppercase">
+      <p className="text-[15px] font-extrabold tracking-wide text-ink/70 capitalize">
         {title}
       </p>
       <ul className="mt-2.5 space-y-2">
@@ -386,22 +472,46 @@ function TakeawayList({ title, items }: { title: string; items: string[] }) {
  * live at the bottom of the page, and unchanged above once it is answered —
  * without either copy drifting from the other.
  */
-export function SceneBody({ scene }: { scene: Scene }) {
+export function SceneBody({
+  scene,
+  citations,
+  glossary,
+}: {
+  scene: Scene;
+  /** Key terms to annotate with a plain-words tooltip on first mention. */
+  glossary?: GlossaryEntry[];
+  /**
+   * Numbered source list for the story. Passed down so the scene's own
+   * `citationRefs` and its trivia's `citationRefs` can both render "[1]"
+   * style links. An activity's explanation always cites the same sources as
+   * its parent scene, so these marks also cover the activity's claims —
+   * they are not duplicated separately in the activity controls.
+   */
+  citations?: StoryCitation[];
+}) {
   const afterText = scene.text.length * 110;
   const learningBlocks = [
     "primer" in scene && scene.primer ? (
       <PrimerCard key="primer" primer={scene.primer} delay={afterText} />
     ) : null,
     scene.learningReference ? (
-      <LearningReferenceCard key="reference" reference={scene.learningReference} />
+      <LearningReferenceCard key="reference" reference={scene.learningReference} citations={citations} />
     ) : null,
     scene.trivia ? (
-      <TriviaCard key="trivia" trivia={scene.trivia} delay={afterText} />
+      <TriviaCard
+        key="trivia"
+        trivia={scene.trivia}
+        citations={citations}
+        delay={afterText}
+      />
     ) : null,
   ].filter((block): block is NonNullable<typeof block> => block !== null);
   return (
     <div className="space-y-8">
-      <Narration text={scene.text} />
+      <div>
+        <Narration text={scene.text} glossary={glossary} />
+        <CitationMarks refs={scene.citationRefs} citations={citations} />
+      </div>
       {learningBlocks.slice(0, 2)}
       {scene.simulation && (
         <StorySimulation kind={scene.simulation} guide={scene.simGuide} />

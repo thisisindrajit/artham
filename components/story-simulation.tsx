@@ -62,10 +62,15 @@ function DeclarativeSimulationView({
       <div className="space-y-5">
         {simulation.controls.map((control) => (
           <div key={control.id} className="space-y-2">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[13px] font-semibold text-muted">
-                {control.label}
-              </span>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-muted">
+                  {control.label}
+                </p>
+                <p className="mt-0.5 text-[12px] leading-[1.4] text-faint">
+                  {control.description}
+                </p>
+              </div>
               <span className="font-mono text-[17px] font-bold text-ink">
                 {values[control.id]} {control.unit}
               </span>

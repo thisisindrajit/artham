@@ -1,6 +1,7 @@
 import { requestProfile } from "@/lib/partner/client";
 import { resolveScenario } from "@/lib/resolve-scenario";
 import { scenarioToContext } from "@/utils/partner-context";
+import { capNotesDigest } from "@/utils/session-notes";
 import type { NotesDigest } from "@/types/partner";
 
 export async function POST(request: Request) {
@@ -18,8 +19,8 @@ export async function POST(request: Request) {
   }
 
   const result = await requestProfile({
-    scenario: scenarioToContext(scenario),
-    notes: body.notes,
+    scenario: scenarioToContext(scenario, { includeActivitySequence: false }),
+    notes: capNotesDigest(body.notes),
     outcome: body.outcome ?? "success",
   });
 

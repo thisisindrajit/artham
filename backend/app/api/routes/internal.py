@@ -8,10 +8,10 @@ from app.core.security import get_service_principal
 from app.db.session import get_db_session
 from app.schemas.engagement import EngagementProfile
 from app.schemas.errors import ErrorResponse
-from app.schemas.media import SignedUpload, UploadIntent
+from app.schemas.media import JobMediaCleanupResult, SignedUpload, UploadIntent
 from app.schemas.story import BackendStoryWrite, PersistenceReceipt
 from app.services.engagement import get_engagement_profile
-from app.services.media import create_upload_intent
+from app.services.media import create_upload_intent, delete_job_media
 from app.services.storage import ObjectStorage, get_object_storage
 from app.services.stories import persist_generated_story
 
@@ -89,3 +89,16 @@ async def create_generated_story(
         write=write,
         idempotency_header=idempotency_key,
     )
+
+
+@router.delete(
+    "/media/by-job/{job_id}",
+    response_model=JobMediaCleanupResult,
+    summary="Delete uncommitted media uploaded for a job",
+)
+async def delete_media_for_job(
+    job_id: Annotated[str, Path(min_length=1, max_length=128)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    storage: Annotated[ObjectStorage, Depends(get_object_storage)],
+) -> JobMediaCleanupResult:
+    return await delete_job_media(session=session, storage=storage, job_id=job_id)

@@ -1,7 +1,7 @@
 # Story generation pipeline
 
 The Python service has two responsibilities: an asynchronous Google ADK pipeline that
-builds complete stories, and a lightweight Gemini Flash thinking engine that
+builds complete stories, and a lightweight LiteLLM thinking engine that
 analyzes learner activity while a story is played.
 
 ## Live thinking engine
@@ -13,7 +13,7 @@ hints, explanations, corrections, and prior model observations. Final profiles
 include three to six small, evidence-backed details such as an exact correction,
 value sequence, explanation, or shift between activities.
 
-Gemini Flash may interpret this evidence, but it does not control story state,
+GPT-5.4 may interpret this evidence through LiteLLM, but it does not control story state,
 correctness, branching, scores, or activity feedback. The deterministic engine
 remains authoritative and limits live analysis calls to meaningful events. Model
 failures use the existing deterministic partner responses, so the story remains
@@ -21,38 +21,113 @@ fully playable when live guidance is unavailable.
 
 ## Workflow
 
+### Beginner-first teaching and difficulty
+
+The `/create` form exposes Easy, Medium, Hard, and Adaptive radio choices.
+The selected value is included in both the prompt preview and the generation
+request. All levels assume zero prior knowledge; difficulty changes reasoning,
+not jargon or prerequisite knowledge:
+
+- **Easy** uses one relevant clue in a guided, one-step application.
+- **Medium** connects two or three taught clues across at least two reasoning
+  steps and rules out a plausible alternative.
+- **Hard** includes at least two demanding moments involving interacting taught
+  constraints, incomplete or partly conflicting evidence, plausible competing
+  solutions, a defensible tradeoff, and revision after a changed condition.
+- **Adaptive** selects one concrete level from relevant learning history and then
+  follows that complete rubric; without useful history it selects Easy.
+
+The critic reports `DIFFICULTY_TOO_LOW` when a requested Hard story only performs
+Medium-level reasoning and caps its quality score at 70 so the single repair cycle
+deepens the decisions. `DIFFICULTY_TOO_HIGH` identifies Easy or Medium stories that
+exceed their requested reasoning burden. Neither condition is repaired by adding
+jargon, hidden prerequisites, arbitrary calculations, or extra mechanisms.
+
+Research requests foundational explanations, not just discovery reports. The
+architect plans the explanation ladder in each scene's `learning_purpose` and
+source-supported `required_facts`. Scene workers receive earlier teaching plans
+as context, but must explain needed prerequisites in their own narrative rather
+than assuming another parallel worker taught them. Essential teaching must precede
+questions and cannot depend on optional cards, media, hints, or answer feedback.
+
+The critic reads in story order as a first-time learner, checking for both
+`ASSUMED_PRIOR_KNOWLEDGE` and `MISLEADING_SIMPLIFICATION`. Story repairs also
+realign activities attached to changed scenes. These quality findings use the
+existing bounded repair/persist-with-warnings flow; they do not add retries.
+Prompt updates affect newly generated or repaired content, not existing saved stories.
+
+Validation follows the generation prompts rather than adding stricter prose rules.
+There is no fixed sentence word limit: `NARRATIVE_TOO_COMPLEX` is a contextual,
+non-blocking readability warning, never a word-count failure. Tables, diagrams,
+and dialogue formatting are not sentence-length proxies. Missing prerequisites
+and misleading explanations are still audited separately. Advisory deterministic
+findings no longer force the quality score down to 60.
+
+Deterministic checks preserve the requested subject/parent-topic mapping and an
+explicit Easy, Medium, or Hard selection; adaptive reasoning is reviewed by the
+critic. Primer requirements count useful ideas, not new technical terms.
+The critic checks learner agency in context, rather than rejecting a story merely
+because another character is called an assistant. Optional generated media stays
+optional, including cover-only stories.
+
+### Story presentation and closure
+
+Rich presentation is restricted to scene narrative. Every spoken line, including
+embedded dialogue, uses `***“Dialogue.”***`. Only a few indispensable terms whose
+meaning is essential to following the story use `**bold**` (the UI adds underline
+styling, not raw HTML). Decorative wording, ordinary actions, whole sentences, and
+repeated occurrences are not highlighted. Purposeful blockquotes, lists, comparison
+tables, Mermaid, and illustrative fenced code are welcome in narrative without a
+per-scene checklist. Narrative also includes a small number of relevant emojis that
+reinforce the setting, action, mood, or idea without random decoration or clutter.
+
+Story and chapter titles, captions, beats, primers, trivia, activities, feedback,
+hints, media fields, partner copy, and metadata remain plain text without Markdown
+or emojis. **In plain words** remains the learner-facing UI label; internal
+`concept` fields stay unchanged.
+Code examples are static text, never executable behavior; Mermaid must render
+safely without scripts, click actions, remote content, or HTML labels. Raw HTML,
+embedded narrative links, and Markdown images remain disallowed.
+
+Essential beginner explanations unfold through action, evidence, and conversation,
+not lectures or technical tangents. Endings resolve the situation happily through
+the learner's earned decision and a warm character callback, without fabricated
+cures, approvals, or unsupported benefits.
+
+“See the real thing” learning-reference cards are temporarily disabled. Generation
+prompts keep their reference fields empty, and orchestration clears those fields
+without calling the reference-image search path. Existing stored cards remain
+compatible and are not retroactively removed from saved stories.
+
 ```mermaid
 flowchart TD
     Start[Generation request] --> Inputs
     Inputs --> Engagement[Engagement loader]
     Inputs --> Exa[Exa topic researcher]
-    Exa --> Scout[Topic scout]
-    Engagement --> Selector[Topic selector]
-    Scout --> Selector
-    Selector --> Story[Storyline writer]
-    Story --> MediaPlan[Media planner]
-    MediaPlan --> Gate[Video necessity and budget gate]
+    Exa --> Topic[Topic resolver]
+    Engagement --> Topic
+    Topic --> Blueprint[Story architect: compact blueprint]
+    Blueprint --> Scenes[Bounded scene fan-out: max 3]
+    Scenes --> SceneJoin[Deterministic scene join]
+    SceneJoin --> Activities[Bounded activity fan-out: max 3]
+    Activities --> Assemble[Strict deterministic assembly]
+    Assemble --> Images[Optional cover]
+    Assemble --> StoryEmbed[Story embeddings]
+    Assemble --> ActivityEmbed[Activity embeddings]
 
-    Gate --> Images[Image generation agent]
-    Gate --> Video[Veo agent, optional]
-    Gate --> Audio[Lyria agent, optional]
-    Story --> Activities[Activity designer]
-    Story --> StoryEmbed[Story embedding agent]
-
-    Activities --> ActivityEmbed[Activity embedding agent]
     Images --> Collator[Deterministic collator]
-    Video --> Collator
-    Audio --> Collator
     StoryEmbed --> Collator
     ActivityEmbed --> Collator
-    Activities --> Collator
+    Assemble --> Collator
 
     Collator --> Checks[Deterministic invariant checks]
-    Collator --> Validator[Semantic validator]
-    Checks --> Verdict{Valid?}
+    Collator --> Validator[First-time learner critic]
+    Checks --> Verdict{Valid and score at least 75?}
     Validator --> Verdict
-    Verdict -- No, max 1 --> Repair[Targeted storyline and activity repair]
+    Verdict -- No, retries remain --> Repair[Critique-guided story repair]
     Repair --> Validator
+    Verdict -- Optional activity defect --> Drop[Drop only that activity]
+    Drop --> Verdict
     Verdict -- Yes --> Persist[Backend persistence agent]
 ```
 
@@ -66,18 +141,17 @@ nodes.
 | Agent | Responsibility | Model or provider |
 | --- | --- | --- |
 | Engagement loader | Fetch prior outcomes for open-ended discovery requests | Backend API |
-| Exa topic researcher | Retrieve recent source text plus explicitly open-license Wikimedia Commons reference images | Exa |
-| Topic scout | Produce grounded candidates only for open-ended requests | Fast Gemini model |
-| Topic selector | Rank candidates only when the learner did not request a topic | Fast Gemini model |
-| Storyline writer | Create the full three-act causal story graph | Quality Gemini model |
-| Media planner | Produce consistent, evidence-bearing media briefs | Quality Gemini model |
-| Image generation agent | Best-effort sequential scene images with spacing and a bounded batch deadline | Gemini native image generation on Vertex AI |
+| Exa topic researcher | Retrieve recent source text for grounded teaching | Exa |
+| Topic resolver | Select one grounded topic for open-ended requests | Fast LiteLLM model |
+| Story architect | Create a compact three-act blueprint and continuity bible | Strong LiteLLM model |
+| Scene chunk worker | Expand exactly one scene specification | Fast LiteLLM model, maximum three concurrent calls |
+| Activity chunk worker | Create exactly one scene activity | Fast LiteLLM model, maximum three concurrent calls |
+| Image generation agent | Generate the single required cover image | Gemini native image generation on Vertex AI |
 | Lyria agent | Best-effort instrumental background music | Lyria on Vertex AI |
-| Activity designer | Produce declarative quiz, reorder, simulation, and reflection specs | Quality Gemini model |
 | Embedding agents | Embed topic, story, scenes, and activities | Vertex AI embeddings |
 | Collator | Assemble typed outputs without generative rewriting | Deterministic ADK node |
-| Validator | Audit grounding, safety, pedagogy, plot, activities, and media | Quality Gemini model |
-| Repairers | Repair storyline and individual activities once, in parallel | Quality Gemini model |
+| Critic | Review as an interested 15-year-old, score the learning experience, and return actionable priorities | Strong LiteLLM model |
+| Story repairer | Apply the critic's priorities when validation fails or the learner score is below 75 | Strong LiteLLM model, maximum two repair cycles |
 | Persistence agent | Atomically store the validated bundle | Backend API |
 
 ## Module layout
@@ -90,11 +164,11 @@ agent/artham_partner/story_pipeline/
 ├── config.py             # Environment-backed deployment choices
 ├── constants.py          # Stable limits and default model IDs
 ├── contracts.py          # Strict Pydantic stage and wire contracts
-├── jobs.py               # In-memory asynchronous job lifecycle
+├── jobs.py               # Durable ADK session and invocation lifecycle
 ├── nodes.py              # Deterministic/provider ADK nodes
 ├── orchestrator.py       # Dynamic fan-out, gate, repair, and persist flow
 ├── partner_contracts.py  # Live analysis request/response contracts
-├── partner_engine.py     # Gemini Flash thinking analysis
+├── partner_engine.py     # LiteLLM thinking analysis
 ├── prompts/              # One prompt module per reasoning responsibility
 ├── runtime.py            # Dependency container
 ├── validation.py         # Non-LLM invariants and report merging
@@ -108,10 +182,8 @@ agent/artham_partner/story_pipeline/
 - Raw embedding vectors are omitted from the semantic validator prompt.
 - Every factual candidate URL must come from Exa. The selector cannot rewrite a
   candidate, and storyline citations must be a subset of the selected evidence.
-- Exa reference images are accepted only when the source page explicitly states
-  Public domain, CC0, CC BY, or CC BY-SA. The image, source page, contributor,
-  license, plain-language explanation, and why-it-matters context remain attached
-  as one scene-local learning reference. Generated cinematic art remains separate.
+- Exa learning-reference image lookup is temporarily dormant. The related contract
+  fields remain for backward compatibility with stored stories.
 - Activities are data, never generated code. Simulation conditions use a small
   control-to-number comparison subset and a trusted frontend renderer. Every
   observed simulation variable has a typed identity, linear, base-conversion, or
@@ -121,27 +193,40 @@ agent/artham_partner/story_pipeline/
 - Veo generation is disabled and absent from the active workflow.
 - Explicit topic requests skip engagement loading, topic scouting, and topic
   selection. The requested subject is deterministically grounded in Exa evidence.
-- Reasoning, media, audio, and embedding stages are serialized and conservatively
-  spaced to avoid bursts against shared Vertex quotas.
-- Every storyline scene gets a dedicated image plus one cover image. When the
-  media planner drops a scene, `_ensure_image_coverage` rebuilds the missing
-  brief deterministically from the scene's own narrative and the style guide.
-- Images are generated sequentially with a 45-second gap, a 240-second per-image
-  deadline, and a 1500-second total batch budget. A rate-limit hit adds a
-  180-second cooldown before the next request.
-- Failed images are retried once after 120 seconds using a simplified,
-  safety-neutral prompt. If any cover or scene image still fails, the whole job
-  fails before persistence, so no partial bundle can become visible.
-- Scoped retries preserve successful assets and regenerate only missing images,
-  so a partial image run never requires a full, costly pipeline restart.
+- Strong-model calls are serialized. Scene and activity workers use separate
+  bounded semaphores with at most three concurrent calls and no fixed delay after
+  a successful request.
+- The active policy honors the request's independent cover and scene-image
+  choices and permits no video. When requested, the cover is generated first;
+  its image bytes are then attached as a conditioning
+  reference to every subsequent per-scene image request (via multimodal
+  `generate_content` input) so characters, palette, and art style stay
+  consistent across the story without merging outputs into one shared image.
+  A cover-enabled job cannot report success if the requested cover fails both
+  generation attempts; optional scene-image failures still do not block the story.
+  This reference is only available in-memory for the run that generated the
+  cover — resumed jobs that reuse an already-uploaded cover fall back to
+  unconditioned scene generation.
+- Each successful scene and activity is checkpointed in the ADK database session
+  immediately. A malformed item retries only that item; failed optional
+  activities are omitted while valid siblings remain.
+- The architect owns the complete interaction outline before scene and activity
+  workers fan out. Every story includes at least one evidence-based quiz and one
+  story-native simulation with meaningful controls. Other activity kinds and their
+  placement vary with the plot rather than repeating a fixed template. New
+  questions are open-ended so they capture the learner's reasoning.
+- The final critic reads the requested topic and story as an interested
+  15-year-old learner. A validation failure or score below 75 triggers a
+  critique-guided repair and revalidation, bounded to two cycles. Rewritten text
+  receives fresh embeddings before persistence.
 - Lyria audio is required whenever enabled. A failed requested audio asset blocks
   persistence rather than silently disappearing.
-- The full ADK workflow has a hard 2700-second deadline and at most two repair passes,
-  leaving enough time for the bounded 1500-second image batch plus reasoning,
-  activities, audio, embeddings, validation, and persistence.
-- Repairs never regenerate media, preventing duplicate media cost.
-- Any repaired story or activity content receives fresh embeddings before final
-  validation and persistence.
+- Image generation, requested background audio, and story/activity embeddings
+  run concurrently after strict assembly.
+- Restart hydration restores jobs and checkpoints from
+  `DatabaseSessionService`. A retry starts a new invocation in the same durable
+  session because cached dynamic children intentionally change the replay
+  sequence; completed chunks are loaded from session state and skipped.
 - Provider or backend failures fail the job explicitly. The player's
   deterministic runtime fallback remains separate from this production system.
 

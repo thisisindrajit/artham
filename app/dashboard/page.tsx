@@ -49,12 +49,20 @@ export default async function DashboardPage() {
                 Recommended stories
               </h2>
             </div>
-            <Link
-              href="/explore"
-              className="shrink-0 rounded-full border border-ink/15 bg-white/90 px-4 py-2 text-[13px] font-bold text-ink shadow-[0_3px_0_rgba(23,23,23,0.08)] transition hover:-translate-y-0.5 hover:border-ink/30"
-            >
-              Explore all →
-            </Link>
+            <div>
+              <Link
+                href="/explore"
+                className="shrink-0 rounded-full border border-ink/15 bg-white/90 px-4 py-2 text-[13px] font-bold text-ink shadow-[0_3px_0_rgba(23,23,23,0.08)] transition hover:-translate-y-0.5 hover:border-ink/30"
+              >
+                Explore all →
+              </Link>
+              <Link
+                href="/create"
+                className="shrink-0 rounded-full bg-ink px-4 py-2 text-[13px] font-bold text-white shadow-[0_3px_0_rgba(23,23,23,0.12)] transition hover:-translate-y-0.5"
+              >
+                Create story
+              </Link>
+            </div>
           </div>
 
           {featured.length > 0 ? (

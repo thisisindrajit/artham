@@ -34,6 +34,7 @@ export interface PreludeRequest {
   intro: string[];
   fallbackQuestion: {
     prompt: string;
+    placeholder?: string;
     options: { id: string; label: string; approach: ApproachTag }[];
   };
 }
@@ -42,6 +43,7 @@ export interface PreludeResponse {
   greeting: string;
   question: {
     prompt: string;
+    placeholder?: string;
     options: { id: string; label: string; approach: ApproachTag }[];
   };
   /** True when this came from the deterministic fallback, not the model. */

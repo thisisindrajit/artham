@@ -96,6 +96,6 @@ export const PARTNER_ACTION_LABELS = {
 export const PARTNER_ACTION_TONES = {
   guide: "text-ink",
   ask: "text-ink",
-  encourage: "text-sage",
+  encourage: "text-accent",
   observe: "text-muted",
 } as const;

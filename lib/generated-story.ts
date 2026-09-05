@@ -35,6 +35,7 @@ export interface GeneratedStory {
       intro?: { role: string; text: string[]; cta: string };
       pre_session?: {
         prompt: string;
+        placeholder?: string;
         options: Array<{
           id: string;
           label: string;
@@ -104,8 +105,13 @@ export interface GeneratedScene {
   primer?:
     | import("@/types/story").ScenePrimer
     | import("@/types/story").ScenePrimer[];
-  trivia?: import("@/types/story").SceneTrivia | null;
+  trivia?:
+    | (Omit<import("@/types/story").SceneTrivia, "citationRefs"> & {
+        citation_refs?: number[];
+      })
+    | null;
   learning_reference?: {
+    citation_refs?: number[];
     title: string;
     image_url: string;
     source_page_url: string;
@@ -116,6 +122,10 @@ export interface GeneratedScene {
       | "CC BY-SA 4.0"
       | "CC BY 3.0"
       | "CC BY-SA 3.0"
+      | "CC BY 2.5"
+      | "CC BY-SA 2.5"
+      | "CC BY 2.0"
+      | "CC BY-SA 2.0"
       | "CC0 1.0";
     license_url: string;
     alt_text: string;
@@ -123,6 +133,12 @@ export interface GeneratedScene {
     why_important: string;
   } | null;
   outcome?: "success" | "partial";
+  /**
+   * 1-based indices into `storyline.citations` backing this scene's
+   * narrative facts. Empty/absent when nothing here is drawn from a
+   * specific numbered source.
+   */
+  citation_refs?: number[];
 }
 
 export interface GeneratedActivity {
@@ -151,6 +167,7 @@ export interface GeneratedActivity {
     controls: Array<{
       control_id: string;
       label: string;
+      description?: string;
       minimum: number;
       maximum: number;
       step: number;
@@ -185,6 +202,7 @@ export interface GeneratedActivity {
   slider?: {
     prompt: string;
     label: string;
+    description?: string;
     unit: string;
     minimum: number;
     maximum: number;

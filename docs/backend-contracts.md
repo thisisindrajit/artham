@@ -9,7 +9,7 @@ must never receive PostgreSQL credentials.
 | Concern | Owner |
 | --- | --- |
 | Topic research and content generation | ADK service |
-| Provider credentials for Gemini, Imagen, Veo, Lyria, embeddings, Exa | ADK service |
+| Provider credentials for OpenAI/LiteLLM, cover generation, Lyria, embeddings, Exa | ADK service |
 | Learner identity and engagement history | Backend |
 | Job durability and authorization | Backend |
 | PostgreSQL and pgvector | Backend |
@@ -165,6 +165,10 @@ Request:
     "is_valid": true,
     "quality_score": 92,
     "issues": [],
+    "learner_feedback": "I understood why the intervention worked and wanted to see the result.",
+    "improvement_priorities": [
+      "Keep the central explanation tied to the learner's decision."
+    ],
     "factual_grounding_summary": "All factual claims map to supplied evidence.",
     "safety_summary": "Suitable for the requested learner age."
   }
@@ -175,6 +179,10 @@ The omitted objects are exactly the JSON representation of Pydantic models in
 `agent/artham_partner/story_pipeline/contracts.py`. Generate backend DTOs from
 that JSON Schema or mirror every field; do not store an unvalidated arbitrary
 blob.
+
+New storylines use an open-ended `pre_session` object with `prompt`,
+`placeholder`, and an empty `options` array. The options array remains accepted
+for older authored stories.
 
 Response:
 

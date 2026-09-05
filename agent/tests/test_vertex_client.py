@@ -9,6 +9,7 @@ import httpx
 from google.genai.errors import ClientError
 
 from artham_partner.story_pipeline.clients.vertex import (
+    GeneratedBinary,
     VertexClient,
     _find_audio_output,
     _normalize_audio_mime,
@@ -213,6 +214,53 @@ class VertexClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.data, b"image")
         self.assertEqual(generate_content.await_count, 2)
         sleep.assert_awaited_once_with(5)
+        await client.close()
+
+    async def test_conditions_image_on_reference_binary_for_style_match(
+        self,
+    ) -> None:
+        generated = SimpleNamespace(
+            parts=[
+                SimpleNamespace(
+                    inline_data=SimpleNamespace(
+                        data=b"image",
+                        mime_type="image/png",
+                    )
+                )
+            ]
+        )
+        generate_content = AsyncMock(return_value=generated)
+        vertex = SimpleNamespace(
+            aio=SimpleNamespace(
+                models=SimpleNamespace(generate_content=generate_content)
+            )
+        )
+        client = VertexClient(settings(), http_client=httpx.AsyncClient())
+        reference = GeneratedBinary(
+            data=b"cover-bytes",
+            content_type="image/webp",
+            provider_model="gemini-3.1-flash-lite-image",
+        )
+
+        with patch.object(VertexClient, "_client", return_value=vertex):
+            result = await client.generate_image(
+                ImageRequest(
+                    asset_key="scene-one",
+                    scene_id="s1",
+                    prompt=(
+                        "A cinematic animated story frame showing a fictional "
+                        "electronics laboratory with no logos or readable text."
+                    ),
+                    alt_text="A fictional electronics laboratory.",
+                ),
+                reference=reference,
+            )
+
+        self.assertEqual(result.data, b"image")
+        contents = generate_content.await_args.kwargs["contents"]
+        self.assertIsInstance(contents, list)
+        self.assertEqual(contents[0].inline_data.data, b"cover-bytes")
+        self.assertIn("Match the character designs", contents[1])
         await client.close()
 
     async def test_rewrites_age_terms_after_image_safety_block(self) -> None:

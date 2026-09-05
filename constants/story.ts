@@ -10,6 +10,19 @@ export const DIFFICULTY_PIPS: Record<Scenario["difficulty"], number> = {
   hard: 3,
 };
 
+export const DOMAIN_LABELS: Record<Domain, string> = {
+  math: "Math",
+  physics: "Physics",
+  chemistry: "Chemistry",
+  biology: "Biology",
+  economics: "Economics",
+  history: "History",
+  space: "Space",
+  "computer-science": "Computer Science",
+  geography: "Geography",
+  technology: "Technology",
+};
+
 export const SCENE_EMOJI: Record<SceneVisualKind, string> = {
   generated: "🖼️",
   bridge: "🌉",
@@ -41,13 +54,17 @@ export const SCENE_EMOJI: Record<SceneVisualKind, string> = {
 };
 
 export const DOMAIN_ORDER: Domain[] = [
+  "math",
   "physics",
   "chemistry",
   "biology",
   "economics",
   "history",
   "space",
+  "computer-science",
+  "geography",
+  "technology",
 ];
 
 export const STORY_PARTS =
-  /(“[^”]+”|\$?[\d][\d,.]*(?:\s?(?:a\.m\.|p\.m\.|Hz|°C|t|L|k|%)(?!\p{L}))?)/gu;
+  /(“[^”]+”|"[^"\n]+"|\$?[\d][\d,.]*(?:\s?(?:a\.m\.|p\.m\.|Hz|°C|t|L|k|%)(?!\p{L}))?)/gu;

@@ -1,5 +1,6 @@
 "use client";
 
+import { DOMAIN_LABELS } from "@/constants/story";
 import { capMarker } from "@/constants/ui";
 import type {
   ScenarioFilterBarProps,
@@ -29,7 +30,7 @@ export function ScenarioFilterBar({
         <ScenarioFilterChip
           key={domain}
           domain={domain}
-          label={domain}
+          label={DOMAIN_LABELS[domain]}
           count={countOf(domain)}
           active={active === domain}
           onClick={() => onChange(domain)}

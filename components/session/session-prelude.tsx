@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { cardInteractive, cardSoft, storyOption } from "@/constants/ui";
 import type { SessionPreludeProps } from "@/types/components";
 
@@ -17,6 +20,7 @@ export function SessionPrelude({
 }: SessionPreludeProps) {
   const question = prelude?.question ?? scenario.preSession;
   const greeting = prelude?.greeting ?? scenario.partnerGreeting;
+  const [draft, setDraft] = useState("");
 
   return (
     <div className="scroll-mt-28 space-y-6">
@@ -42,7 +46,7 @@ export function SessionPrelude({
             </span>
             You said: {answered.answer}
           </p>
-        ) : (
+        ) : question.options.length > 0 ? (
           <div className="grid gap-2.5">
             {question.options.map((option, index) => (
               <button
@@ -57,6 +61,28 @@ export function SessionPrelude({
                 {option.label}
               </button>
             ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              rows={4}
+              placeholder={
+                question.placeholder ??
+                "Share what you would try first and why..."
+              }
+              className="w-full resize-none rounded-2xl border border-line bg-white px-4 py-3 text-[16px] leading-relaxed text-ink shadow-inner outline-none placeholder:text-faint focus:border-accent/45 focus:ring-4 focus:ring-accent/10"
+            />
+            <button
+              type="button"
+              disabled={!draft.trim()}
+              onClick={() => onAnswer(question.prompt, draft.trim())}
+              data-press="deep"
+              className={`${cardSoft} ${cardInteractive} ${storyOption} rounded-2xl px-5 py-3 text-[15px] font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              Share my thinking
+            </button>
           </div>
         )}
       </div>

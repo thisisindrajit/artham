@@ -8,13 +8,12 @@ import binascii
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any
 
 import httpx
 from google import auth, genai
 from google.auth.transport.requests import Request as AuthRequest
 from google.genai import errors, types
-from pydantic import BaseModel, ValidationError
 
 from ..config import PipelineSettings
 from ..contracts import (
@@ -25,13 +24,12 @@ from ..contracts import (
 )
 from ..errors import ConfigurationError, ProviderError
 from ..constants import (
+    EMBEDDING_RATE_LIMIT_ATTEMPTS,
+    EMBEDDING_RATE_LIMIT_BASE_DELAY_SECONDS,
     EMBEDDING_REQUEST_SPACING_SECONDS,
     RATE_LIMIT_RETRY_DELAY_SECONDS,
 )
 from .http import request_with_retries
-
-TModel = TypeVar("TModel", bound=BaseModel)
-
 
 @dataclass(frozen=True, slots=True)
 class GeneratedBinary:
@@ -60,60 +58,37 @@ class VertexClient:
         for client in self._clients.values():
             client.close()
 
-    async def generate_structured(
+    async def generate_image(
         self,
+        request: ImageRequest,
         *,
-        prompt: str,
-        output_model: type[TModel],
-        max_output_tokens: int = 1200,
-    ) -> TModel:
-        """Generate a small validated JSON response with the configured Flash model."""
-        last_error: ValidationError | None = None
-        correction = ""
-        for attempt in range(2):
-            response = await self._client(
-                self._settings.google_cloud_location
-            ).aio.models.generate_content(
-                model=self._settings.fast_model,
-                contents=f"{prompt}{correction}",
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    max_output_tokens=max_output_tokens,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level=types.ThinkingLevel.MINIMAL
-                    ),
-                    response_mime_type="application/json",
-                    response_json_schema=_structured_schema(output_model),
-                ),
-            )
-            if not response.text:
-                raise ProviderError("Flash model returned no structured response")
-            try:
-                return output_model.model_validate_json(response.text)
-            except ValidationError as exc:
-                last_error = exc
-                if attempt == 0:
-                    correction = (
-                        "\n\nYour previous response violated the output schema. "
-                        "Return a complete corrected JSON object only. Errors: "
-                        f"{exc.errors(include_url=False)}"
-                    )
-        raise ProviderError(
-            "Flash model returned invalid structured output: "
-            f"{last_error.errors(include_url=False) if last_error else 'unknown error'}"
-        ) from last_error
-
-    async def generate_image(self, request: ImageRequest) -> GeneratedBinary:
+        reference: GeneratedBinary | None = None,
+    ) -> GeneratedBinary:
         if not self._settings.image_model.startswith("imagen-"):
             empty_response_details = "no response"
             prompt = request.prompt
+            if reference is not None:
+                prompt = (
+                    "Match the character designs, color palette, and art style "
+                    "of the attached reference image exactly. Do not reuse its "
+                    f"composition or action. New scene: {prompt}"
+                )
             for attempt in range(2):
+                contents: Any = prompt
+                if reference is not None:
+                    contents = [
+                        types.Part.from_bytes(
+                            data=reference.data,
+                            mime_type=reference.content_type,
+                        ),
+                        prompt,
+                    ]
                 try:
                     response = await self._client(
                         self._settings.google_cloud_location
                     ).aio.models.generate_content(
                         model=self._settings.image_model,
-                        contents=prompt,
+                        contents=contents,
                         config=types.GenerateContentConfig(
                             response_modalities=["IMAGE"],
                             image_config=types.ImageConfig(
@@ -284,15 +259,25 @@ class VertexClient:
             item: tuple[str, str, str],
         ) -> EmbeddingRecord:
             content_key, content_type, text = item
-            response = await client.aio.models.embed_content(
-                model=self._settings.embedding_model,
-                contents=[text],
-                config=types.EmbedContentConfig(
-                    task_type="RETRIEVAL_DOCUMENT",
-                    output_dimensionality=768,
-                    auto_truncate=True,
-                ),
-            )
+            for attempt in range(EMBEDDING_RATE_LIMIT_ATTEMPTS):
+                try:
+                    response = await client.aio.models.embed_content(
+                        model=self._settings.embedding_model,
+                        contents=[text],
+                        config=types.EmbedContentConfig(
+                            task_type="RETRIEVAL_DOCUMENT",
+                            output_dimensionality=768,
+                            auto_truncate=True,
+                        ),
+                    )
+                    break
+                except errors.ClientError as exc:
+                    last = attempt == EMBEDDING_RATE_LIMIT_ATTEMPTS - 1
+                    if exc.code != 429 or last:
+                        raise
+                    await asyncio.sleep(
+                        EMBEDDING_RATE_LIMIT_BASE_DELAY_SECONDS * (2**attempt)
+                    )
             embeddings = response.embeddings or []
             if len(embeddings) != 1:
                 raise ProviderError(
@@ -413,22 +398,3 @@ def minimal_safe_image_prompt(request: ImageRequest) -> str:
         "expressions, uncluttered composition, no danger, no conflict, no logos, "
         f"and no readable text. Scene: {description}"
     )
-
-
-def _structured_schema(output_model: type[BaseModel]) -> dict[str, Any]:
-    schema = output_model.model_json_schema(by_alias=True)
-
-    def strip_unsupported(value: Any) -> None:
-        if isinstance(value, dict):
-            value.pop("minItems", None)
-            value.pop("maxItems", None)
-            value.pop("exclusiveMinimum", None)
-            value.pop("exclusiveMaximum", None)
-            for child in value.values():
-                strip_unsupported(child)
-        elif isinstance(value, list):
-            for child in value:
-                strip_unsupported(child)
-
-    strip_unsupported(schema)
-    return schema

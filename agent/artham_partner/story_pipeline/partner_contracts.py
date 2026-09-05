@@ -55,7 +55,8 @@ class PreludeOption(PartnerModel):
 
 class PreludeQuestion(PartnerModel):
     prompt: str
-    options: list[PreludeOption]
+    placeholder: str = "Share what you would try first..."
+    options: list[PreludeOption] = Field(default_factory=list, max_length=4)
 
 
 class PreludeRequest(PartnerModel):
@@ -134,5 +135,5 @@ class ProfileOutput(PartnerModel):
     strength: ProfileEvidence
     blind_spot: ProfileEvidence
     noticed: str
-    details: list[ProfileDetail] = Field(min_length=3, max_length=6)
+    details: list[ProfileDetail] = Field(min_length=3, max_length=4)
     try_next: str

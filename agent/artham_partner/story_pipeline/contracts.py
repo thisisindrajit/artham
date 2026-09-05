@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -75,15 +75,19 @@ class RepairComponent(StrEnum):
 class SubjectRef(ContractModel):
     """Extensible academic taxonomy rather than a fixed frontend enum."""
 
+    # Broad catalog category, e.g. "science" or "history".
     domain: str = Field(min_length=2, max_length=80)
+    # Parent topic shown on story cards, e.g. "supernovae" or "Silk Route".
     discipline: str = Field(min_length=2, max_length=120)
+    # Optional narrower concepts beneath the parent topic.
     topic_tags: list[str] = Field(default_factory=list, max_length=12)
 
     @field_validator("discipline")
     @classmethod
     def discipline_is_brief(cls, value: str) -> str:
-        if len(value.split()) > 2:
-            raise ValueError("discipline must contain at most two words")
+        words = [part for part in value.split() if any(char.isalnum() for char in part)]
+        if len(words) > 4:
+            raise ValueError("discipline must contain at most four content words")
         return value
 
 
@@ -100,9 +104,16 @@ class VideoBudget(ContractModel):
 
 
 class MediaBudget(ContractModel):
-    max_images: int = Field(default=6, ge=1, le=MAX_IMAGE_ASSETS)
+    max_images: int = Field(default=1, ge=0, le=MAX_IMAGE_ASSETS)
+    generate_cover_image: bool = True
     video: VideoBudget = Field(default_factory=VideoBudget)
     generate_background_audio: bool = True
+
+    @model_validator(mode="after")
+    def cover_requires_an_image_slot(self) -> "MediaBudget":
+        if self.generate_cover_image and self.max_images < 1:
+            raise ValueError("cover generation requires at least one image slot")
+        return self
 
 
 class StoryGenerationRequest(ContractModel):
@@ -117,6 +128,12 @@ class StoryGenerationRequest(ContractModel):
     excluded_topics: list[str] = Field(default_factory=list, max_length=30)
     locale: str = Field(default="en-US", pattern=r"^[a-z]{2,3}(?:-[A-Z]{2})?$")
     media_budget: MediaBudget = Field(default_factory=MediaBudget)
+    # Free-form natural-language description of the exact story to generate
+    # (setting, plot, characters, tone). When supplied, this is the
+    # authoritative creative brief: it takes priority over interpreting
+    # preferred_subjects.topic_tags as keyword hints. Optional -- structured
+    # subject/topic fields alone remain sufficient without it.
+    story_brief: str | None = Field(default=None, min_length=10, max_length=1500)
 
 
 class EngagementStory(ContractModel):
@@ -161,18 +178,22 @@ class OpenLearningImage(ContractModel):
         "CC BY-SA 4.0",
         "CC BY 3.0",
         "CC BY-SA 3.0",
+        "CC BY 2.5",
+        "CC BY-SA 2.5",
+        "CC BY 2.0",
+        "CC BY-SA 2.0",
         "CC0 1.0",
     ]
     license_url: HttpUrl
     alt_text: str = Field(min_length=12, max_length=300)
+    # Internal-only: raw source-page text used to author plain_explanation.
+    # Never sent to the backend (not part of its persistence contract).
+    page_summary: str | None = Field(default=None, max_length=600, exclude=True)
 
 
 class ResearchCorpus(ContractModel):
     query: str
     sources: list[SourceEvidence] = Field(min_length=3, max_length=30)
-    reference_images: list[OpenLearningImage] = Field(
-        default_factory=list, max_length=6
-    )
 
 
 class TopicCandidate(ContractModel):
@@ -232,7 +253,7 @@ class SceneDraft(ContractModel):
         "narrative", "choice", "slider", "reorder", "reflect", "ending"
     ]
     mood: Literal["calm", "tense", "alarm", "insight", "night", "resolve"]
-    beat: str = Field(min_length=2, max_length=32)
+    beat: str = Field(min_length=2, max_length=160)
     hints: list[str] | None = Field(default=None, min_length=3, max_length=3)
     concept: str | None = None
     probe: str | None = None
@@ -240,6 +261,19 @@ class SceneDraft(ContractModel):
     trivia: "SceneTrivia | None" = None
     learning_reference: "SceneLearningReference | None" = None
     outcome: Literal["success", "partial"] | None = None
+    # 1-based indices into StorylineDraft.citations identifying which supplied
+    # sources this scene's narrative facts are drawn from. Optional -- left
+    # empty when no specific source backs the scene's content.
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
+    # A specific, concrete, real-world named thing this scene's narrative
+    # actually mentions (a molecule, artifact, instrument, building, species,
+    # place) that a real photo would help a learner picture -- never the
+    # story's whole topic. Filled by the scene worker itself since only it
+    # knows the exact concrete nouns used in the prose; the orchestrator later
+    # searches for a real, openly licensed photo of this specific subject.
+    reference_subject: str | None = Field(default=None, max_length=80)
+    reference_fact: str | None = Field(default=None, min_length=30, max_length=360)
+    reference_fact_citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class ScenePrimer(ContractModel):
@@ -252,11 +286,15 @@ class SceneTrivia(ContractModel):
     emoji: str = Field(min_length=1, max_length=8)
     title: str = Field(min_length=4, max_length=80)
     text: str = Field(min_length=20, max_length=320)
+    # 1-based indices into StorylineDraft.citations backing this specific
+    # "did you know" fact, distinct from the scene's own citation_refs.
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class SceneLearningReference(OpenLearningImage):
     plain_explanation: str = Field(min_length=30, max_length=420)
     why_important: str = Field(min_length=30, max_length=360)
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class StoryTakeaway(ContractModel):
@@ -286,7 +324,12 @@ class PreSessionOption(ContractModel):
 
 class PreSessionQuestion(ContractModel):
     prompt: str = Field(min_length=20, max_length=300)
-    options: list[PreSessionOption] = Field(min_length=4, max_length=4)
+    placeholder: str = Field(
+        default="Share what you would try first...",
+        min_length=8,
+        max_length=140,
+    )
+    options: list[PreSessionOption] = Field(default_factory=list, max_length=4)
 
 
 class StoryIntro(ContractModel):
@@ -299,6 +342,94 @@ class StoryCharacter(ContractModel):
     name: str = Field(min_length=2, max_length=60)
     role: str = Field(min_length=3, max_length=100)
     visual_description: str = Field(min_length=20, max_length=300)
+
+
+class SceneSpec(ContractModel):
+    """Compact architect output expanded by one scene worker."""
+
+    scene_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{1,63}$")
+    position: int = Field(ge=0)
+    act: Literal[1, 2, 3]
+    title: str
+    beat: str
+    narrative_goal: str
+    learning_purpose: str
+    required_facts: list[str]
+    character_names: list[str]
+    interaction_slot: ActivityKind | None = None
+    next_scene_id: str | None = None
+    scene_type: Literal[
+        "narrative", "choice", "slider", "reorder", "reflect", "ending"
+    ]
+    mood: Literal["calm", "tense", "alarm", "insight", "night", "resolve"]
+    concept: str | None = None
+    include_primer: bool = False
+    include_trivia: bool = False
+    trivia_fact: str | None = None
+    # Planned centrally so parallel scene workers cannot all pick the same
+    # subject and lose every duplicate to deduplication.
+    reference_subject: str | None = Field(default=None, max_length=80)
+    outcome: Literal["success", "partial"] | None = None
+
+    @model_validator(mode="after")
+    def trivia_is_planned(self) -> "SceneSpec":
+        if self.include_trivia != bool(self.trivia_fact):
+            raise ValueError(
+                "include_trivia and trivia_fact must be present together"
+            )
+        return self
+
+
+class StoryBlueprint(ContractModel):
+    """Whole-story reasoning without learner-facing scene prose."""
+
+    story_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{2,79}$")
+    title: str
+    tagline: str
+    synopsis: str
+    subject: SubjectRef
+    target_age: int
+    difficulty: Difficulty
+    estimated_minutes: int
+    learning_objectives: list[str]
+    opening_scene_id: str
+    takeaway: str
+    citations: list[SourceEvidence]
+    learning_goal: str
+    stage_label: str
+    partner_greeting: str
+    characters: list[StoryCharacter]
+    intro: StoryIntro
+    pre_session: PreSessionQuestion
+    player_takeaway: StoryTakeaway
+    continuity_bible: str
+    scenes: list[SceneSpec] = Field(min_length=5, max_length=8)
+
+    @model_validator(mode="after")
+    def scene_graph_is_ordered(self) -> "StoryBlueprint":
+        ordered = sorted(self.scenes, key=lambda item: item.position)
+        if ordered != self.scenes:
+            raise ValueError("blueprint scenes must be ordered by position")
+        ids = [scene.scene_id for scene in self.scenes]
+        if len(ids) != len(set(ids)):
+            raise ValueError("blueprint scene ids must be unique")
+        if not ids or self.opening_scene_id != ids[0]:
+            raise ValueError("opening_scene_id must identify the first scene")
+        expected_next = [*ids[1:], None]
+        if [scene.next_scene_id for scene in self.scenes] != expected_next:
+            raise ValueError("blueprint scenes must form one ordered path")
+        if self.scenes[-1].scene_type != "ending":
+            raise ValueError("the final blueprint scene must be the ending")
+        interaction_kinds = {
+            scene.interaction_slot
+            for scene in self.scenes
+            if scene.interaction_slot is not None
+        }
+        if ActivityKind.QUIZ not in interaction_kinds:
+            raise ValueError("every blueprint must include at least one quiz")
+        if ActivityKind.SIMULATION not in interaction_kinds:
+            raise ValueError("every blueprint must include at least one simulation")
+        return self
 
 
 class StorylineDraft(ContractModel):
@@ -357,6 +488,7 @@ class ReorderSpec(ContractModel):
 class SimulationControl(ContractModel):
     control_id: str
     label: str
+    description: str = ""
     minimum: float
     maximum: float
     step: float = Field(gt=0)
@@ -373,13 +505,13 @@ class SimulationControl(ContractModel):
 
 
 class SimulationLookupCase(ContractModel):
-    when: dict[str, float] = Field(max_length=4)
-    value: str = Field(min_length=1, max_length=80)
+    when: dict[str, float]
+    value: str
 
 
 class SimulationReadout(ContractModel):
     readout_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,63}$")
-    label: str = Field(min_length=2, max_length=100)
+    label: str
     operation: Literal[
         "identity",
         "linear",
@@ -390,13 +522,13 @@ class SimulationReadout(ContractModel):
         "base_conversion",
         "lookup",
     ]
-    input_ids: list[str] = Field(min_length=1, max_length=4)
-    params: dict[str, float] = Field(default_factory=dict, max_length=8)
-    cases: list[SimulationLookupCase] = Field(default_factory=list, max_length=32)
-    fallback: str = Field(default="—", min_length=1, max_length=80)
-    success_value: str = Field(min_length=1, max_length=80)
-    unit: str = Field(default="", max_length=24)
-    decimals: int = Field(default=0, ge=0, le=4)
+    input_ids: list[str]
+    params: dict[str, float] = Field(default_factory=dict)
+    cases: list[SimulationLookupCase] = Field(default_factory=list)
+    fallback: str = "—"
+    success_value: str
+    unit: str = ""
+    decimals: int = 0
 
 
 class SimulationSpec(ContractModel):
@@ -404,11 +536,9 @@ class SimulationSpec(ContractModel):
     model_kind: str = Field(
         description="Frontend renderer identifier, never executable code."
     )
-    controls: list[SimulationControl] = Field(min_length=1, max_length=4)
-    observed_variables: list[str] = Field(min_length=1, max_length=6)
-    readouts: list[SimulationReadout] = Field(
-        default_factory=list, min_length=1, max_length=6
-    )
+    controls: list[SimulationControl]
+    observed_variables: list[str]
+    readouts: list[SimulationReadout] = Field(default_factory=list)
     success_condition: str = Field(
         description="A declarative condition consumed by a trusted renderer."
     )
@@ -417,19 +547,23 @@ class SimulationSpec(ContractModel):
 
 
 class SimulationGuide(ContractModel):
-    shows: str = Field(min_length=20, max_length=400)
-    move: str = Field(min_length=20, max_length=400)
-    watch: str = Field(min_length=20, max_length=400)
+    shows: str
+    move: str
+    watch: str
 
 
 class SliderBand(ContractModel):
     max: float
-    text: str = Field(min_length=10, max_length=240)
+    text: str
 
 
 class SliderSpec(ContractModel):
     prompt: str
     label: str
+    description: str = Field(
+        default="",
+        description="What moving this slider changes and why it matters."
+    )
     unit: str = ""
     minimum: float
     maximum: float
@@ -449,16 +583,16 @@ class SliderSpec(ContractModel):
         "linear",
     ]
     readout_params: dict[str, float]
-    readout_decimals: int = Field(ge=0, le=3)
+    readout_decimals: int
     driver_label: str
     driver_value: float
     driver_unit: str = ""
     driver_expr: Literal["fixed", "part_of_total_percent"] = "fixed"
-    driver_params: dict[str, float] = Field(default_factory=dict, max_length=4)
+    driver_params: dict[str, float] = Field(default_factory=dict)
     risk_mode: Literal["separation", "ceiling"]
     risk_safe_gap: float = Field(gt=0)
     meter: Literal["wave", "thermometer", "market", "crowd", "gauge"]
-    bands: list[SliderBand] = Field(min_length=3, max_length=6)
+    bands: list[SliderBand]
     explanation: str
     guide: SimulationGuide
 
@@ -486,7 +620,7 @@ class SliderSpec(ContractModel):
 class ReflectionSpec(ContractModel):
     prompt: str
     placeholder: str
-    evidence_to_notice: list[str] = Field(min_length=1, max_length=4)
+    evidence_to_notice: list[str]
 
 
 class ActivitySpec(ContractModel):
@@ -499,6 +633,29 @@ class ActivitySpec(ContractModel):
     simulation: SimulationSpec | None = None
     reflection: ReflectionSpec | None = None
     slider: SliderSpec | None = None
+    # 1-based indices into StorylineDraft.citations. Deterministically copied
+    # from the parent scene's citation_refs (activities are tied 1:1 to a
+    # scene), never authored directly by the activity worker.
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="before")
+    @classmethod
+    def discard_extraneous_payloads(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        kind = value.get("kind")
+        kind_value = kind.value if isinstance(kind, ActivityKind) else kind
+        payload_fields = {item.value for item in ActivityKind}
+        if kind_value not in payload_fields or value.get(kind_value) is None:
+            return value
+        return {
+            **value,
+            **{
+                field: None
+                for field in payload_fields
+                if field != kind_value
+            },
+        }
 
     @model_validator(mode="after")
     def exactly_one_matching_payload(self) -> "ActivitySpec":
@@ -518,7 +675,7 @@ class ActivitySpec(ContractModel):
 
 
 class ActivityPlan(ContractModel):
-    activities: list[ActivitySpec] = Field(min_length=2, max_length=12)
+    activities: list[ActivitySpec]
 
 
 class ImageRequest(ContractModel):
@@ -630,6 +787,16 @@ class ValidationReport(ContractModel):
     is_valid: bool
     quality_score: int = Field(ge=0, le=100)
     issues: list[ValidationIssue] = Field(default_factory=list, max_length=60)
+    learner_feedback: str = Field(
+        default="The learner review was not recorded for this older story.",
+        min_length=20,
+        max_length=1200,
+    )
+    improvement_priorities: list[str] = Field(
+        default_factory=lambda: ["Keep the story clear and focused."],
+        min_length=1,
+        max_length=6,
+    )
     factual_grounding_summary: str = Field(min_length=20, max_length=1200)
     safety_summary: str = Field(min_length=20, max_length=1200)
 
@@ -660,7 +827,24 @@ class StoryGenerationResult(ContractModel):
     job_id: str
     receipt: PersistenceReceipt
     validation: ValidationReport
+    # Keep accepting historical jobs created before the retry policy changed.
     repair_cycles: int = Field(ge=0, le=2)
+    metadata: "GenerationMetadata" = Field(default_factory=lambda: GenerationMetadata())
+
+
+class TokenUsage(ContractModel):
+    input_tokens: int = Field(default=0, ge=0)
+    output_tokens: int = Field(default=0, ge=0)
+    thoughts_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
+class GenerationMetadata(ContractModel):
+    """Provider usage and model details retained with every completed job."""
+
+    usage: TokenUsage = Field(default_factory=TokenUsage)
+    usage_by_agent: dict[str, TokenUsage] = Field(default_factory=dict)
+    model_versions: list[str] = Field(default_factory=list)
 
 
 class StoryJobAccepted(ContractModel):
@@ -679,6 +863,8 @@ class StoryJobStatus(ContractModel):
     result: StoryGenerationResult | None = None
     error_code: str | None = None
     error_message: str | None = None
+    session_id: str | None = None
+    invocation_id: str | None = None
 
 
 class UploadIntent(ContractModel):
@@ -696,6 +882,12 @@ class SignedUpload(ContractModel):
     public_url: HttpUrl
     headers: dict[str, str] = Field(default_factory=dict)
     expires_at: datetime
+
+
+class JobMediaCleanupResult(ContractModel):
+    job_id: str
+    deleted_assets: int = Field(ge=0)
+    skipped_committed_assets: int = Field(ge=0)
 
 
 class BackendStoryWrite(ContractModel):

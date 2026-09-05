@@ -7,11 +7,13 @@ export function SliderMeter({
   risk,
   readout,
   driver,
+  isTargetValue,
 }: {
   scene: SliderScene;
   risk: number;
   readout: number;
   driver: number;
+  isTargetValue: boolean;
 }) {
   if (scene.meter === "wave") {
     return (
@@ -22,9 +24,10 @@ export function SliderMeter({
   }
 
   const tone =
-    risk > 0.72 ? "var(--color-rose)"
+    isTargetValue ? "var(--color-sage)"
+    : risk > 0.5 ? "var(--color-rose)"
     : risk > 0.38 ? "var(--color-accent)"
-    : "var(--color-sage)";
+    : "var(--color-ink)";
 
   if (scene.driver.expr === "part_of_total_percent") {
     const runwayFill = Math.max(0, Math.min(100, (readout / 30) * 100));

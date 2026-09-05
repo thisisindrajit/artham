@@ -23,12 +23,16 @@ import type {
 import { legacySimulationReadouts } from "@/utils/simulation-runtime";
 
 const DOMAINS: Domain[] = [
+  "math",
   "physics",
   "biology",
   "economics",
   "chemistry",
   "history",
   "space",
+  "computer-science",
+  "geography",
+  "technology",
 ];
 
 const APPROACHES: ApproachTag[] = [
@@ -61,8 +65,8 @@ export function generatedStoryToScenario(story: GeneratedStory): Scenario {
       ? {
           kind: "generated",
           title: storyline.title,
-          caption: cover.alt_text ?? storyline.tagline,
-          status: "Story cover",
+          caption: storyline.tagline,
+          status: storyline.scenes[0]?.title ?? "Opening chapter",
           src: story.media_urls[cover.asset_key],
         }
       : visualFor(story, storyline.scenes[0]);
@@ -92,6 +96,11 @@ export function generatedStoryToScenario(story: GeneratedStory): Scenario {
     ),
     minutes: storyline.estimated_minutes,
     stageLabel: storyline.stage_label ?? `${storyline.title} live`,
+    citations: storyline.citations.map((citation) => ({
+      title: citation.title,
+      url: citation.url,
+      sourceName: citation.source_name,
+    })),
     partnerGreeting:
       storyline.partner_greeting ??
       "You are in charge. Read the evidence, test the system, and let each consequence update your plan.",
@@ -103,17 +112,10 @@ export function generatedStoryToScenario(story: GeneratedStory): Scenario {
     },
     preSession:
       storyline.pre_session ?? {
-        prompt: "The situation changes without warning. What is your first move?",
-        options: APPROACHES.map((approach, index) => ({
-          id: `approach-${index + 1}`,
-          label: [
-            "Measure what changed before acting.",
-            "Take the safest immediate action.",
-            "Look for a pattern across the clues.",
-            "Ask the most experienced person present.",
-          ][index],
-          approach,
-        })),
+        prompt:
+          "The situation changes without warning. What would you try first, and why?",
+        placeholder: "Describe your first move and what it could reveal...",
+        options: [],
       },
     startScene: first.id,
     scenes,
@@ -147,10 +149,16 @@ function adaptScene(
     id: draft.scene_id,
     act: draft.act,
     mood: draft.mood ?? moodFor(draft.act, last),
-    beat: draft.beat ?? draft.title,
+    // Backend `title` is the short 4-5 word label (what this app's `beat`
+    // field is for for progress rail); backend `beat` is a full recap
+    // sentence and is not surfaced in the header/progress rail.
+    beat: draft.title ?? draft.beat,
     visual: visualFor(story, draft),
     primer: draft.primer,
-    trivia: draft.trivia ?? undefined,
+    trivia: draft.trivia
+      ? { ...draft.trivia, citationRefs: draft.trivia.citation_refs ?? [] }
+      : undefined,
+    citationRefs: draft.citation_refs ?? [],
     learningReference: draft.learning_reference
       ? {
           title: cleanLearnerText(draft.learning_reference.title),
@@ -161,6 +169,7 @@ function adaptScene(
           licenseUrl: draft.learning_reference.license_url,
           altText: cleanLearnerText(draft.learning_reference.alt_text),
           plainExplanation: draft.learning_reference.plain_explanation,
+          citationRefs: draft.learning_reference.citation_refs,
           whyImportant: draft.learning_reference.why_important,
         }
       : undefined,
@@ -172,6 +181,9 @@ function adaptScene(
           controls: activity.simulation.controls.map((control) => ({
             id: control.control_id,
             label: control.label,
+            description:
+              control.description?.trim() ||
+              `Adjust ${control.label.toLocaleLowerCase()} and observe what changes.`,
             min: control.minimum,
             max: control.maximum,
             step: control.step,
@@ -230,6 +242,9 @@ function adaptScene(
       prompt: slider.prompt,
       slider: {
         label: slider.label,
+        description:
+          slider.description?.trim() ||
+          `Adjust ${slider.label.toLocaleLowerCase()} and observe what changes.`,
         unit: slider.unit,
         min: slider.minimum,
         max: slider.maximum,
@@ -377,7 +392,7 @@ function visualFor(
     kind: "generated",
     title: scene.title,
     caption: image?.alt_text ?? scene.media_cue,
-    status: `Chapter ${scene.act} · ${scene.beat ?? scene.title}`,
+    status: `Chapter ${scene.act} · ${scene.title ?? scene.beat}`,
     src: image ? story.media_urls[image.asset_key] : undefined,
   };
 }
@@ -428,6 +443,8 @@ function normalizeDomain(value: string): Domain {
   if (/market|finance|supply|demand/.test(lower)) return "economics";
   if (/molecule|reaction|material/.test(lower)) return "chemistry";
   if (/cell|genetic|ecology|medicine/.test(lower)) return "biology";
+  if (/tectonic|plate|volcano|earthquake|geolog|landform|continent/.test(lower))
+    return "geography";
   return "history";
 }
 

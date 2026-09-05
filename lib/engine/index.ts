@@ -549,7 +549,7 @@ function transition(
 
 /* -------------------- partner call policy -------------------- */
 
-/** Keeps a session inside the 3–8 call budget the product depends on. */
+/** Keeps Artham available for meaningful struggle without interrupting each scene. */
 export { IN_SESSION_CALL_BUDGET } from "@/constants/engine";
 
 export function shouldConsultPartner(
@@ -565,12 +565,12 @@ export function shouldConsultPartner(
       return true;
     case "self_correction":
       return true;
-    // Only interesting once the learner has actually iterated.
+    // Only interrupt an experiment after substantial iteration.
     case "experiment":
-      return event.values.length >= 2;
-    // A clean first-try answer only earns a call early, when a probe is cheap.
+      return event.values.length >= 3;
+    // Clean first-try decisions should let the story continue uninterrupted.
     case "key_decision":
-      return callsUsed < 3;
+      return false;
   }
 }
 

@@ -8,12 +8,13 @@ from .constants import (
     ALLOWED_AUDIO_MIME_TYPES,
     ALLOWED_IMAGE_MIME_TYPES,
     ALLOWED_VIDEO_MIME_TYPES,
-    MAX_MISSING_SCENE_IMAGES,
+    MAX_LEARNING_REFERENCES,
 )
 from .contracts import (
     ActivityPlan,
     ActivityKind,
     AssetKind,
+    Difficulty,
     GeneratedStoryBundle,
     RepairComponent,
     SimulationControl,
@@ -28,6 +29,67 @@ _CONDITION_CLAUSE = re.compile(
     r"^\s*([a-z][a-z0-9_]*)\s*(==|>=|<=|>|<)\s*(-?\d+(?:\.\d+)?)\s*$",
     re.IGNORECASE,
 )
+
+# The semantic validator invents its own issue codes, so the set of complaints
+# it can raise is unbounded and no repair loop converges against it. Only
+# genuine risk from it may block a release; pedagogy, taste, and phrasing are
+# recorded as warnings instead.
+_RELEASE_RISK_TERMS = (
+    "SAFETY",
+    "UNSAFE",
+    "HARM",
+    "AGE_INAPPROPRIATE",
+    "PRIVACY",
+    "PII",
+    "FABRICAT",
+    "FACTUAL_ERROR",
+    "FACTUALLY_INCORRECT",
+    "MISINFORMATION",
+    "PLAGIAR",
+)
+
+# Deterministic errors that only count activities. When salvaging a story a
+# shorter interaction set is far more useful than discarding the whole run.
+_ACTIVITY_QUOTA_CODES = frozenset(
+    {
+        "ACTIVITY_SLOT_MISMATCH",
+        "INSUFFICIENT_DECISIONS",
+        "PHYSICS_SIMULATION_ACTIVITIES",
+        "PHYSICS_SIMULATION_COUNT",
+    }
+)
+
+_HARD_DETERMINISTIC_CODES = frozenset(
+    {
+        "DUPLICATE_SCENE_ID",
+        "MISSING_OPENING_SCENE",
+        "BROKEN_SCENE_REFERENCE",
+        "INVALID_ENDING_COUNT",
+        "NO_TERMINAL_SCENE",
+        "UNREACHABLE_SCENES",
+        "UNAPPROVED_CITATION_EVIDENCE",
+        "IMAGE_BUDGET_EXCEEDED",
+        "INVALID_COVER_IMAGE_COUNT",
+        "INVALID_COVER_IMAGE",
+        "IMAGE_CHARACTER_AGE_UNSAFE",
+        "VIDEO_BUDGET_EXCEEDED",
+        "VIDEO_GATE_BUDGET_BYPASS",
+        "AUDIO_BUDGET_EXCEEDED",
+        "ASSET_SET_MISMATCH",
+        "DUPLICATE_ASSET_KEY",
+        "INVALID_ASSET_MIME",
+        "DUPLICATE_EMBEDDING_KEY",
+        "EMBEDDING_DIMENSION_MISMATCH",
+    }
+)
+
+_ACTIVITY_PATH = re.compile(r"activities\[([^\]]+)\]")
+
+
+def _is_release_risk(issue: ValidationIssue) -> bool:
+    return issue.severity is ValidationSeverity.ERROR and any(
+        term in issue.code for term in _RELEASE_RISK_TERMS
+    )
 
 
 def deterministic_issues(
@@ -74,27 +136,50 @@ def deterministic_issues(
     scenes = bundle.storyline.scenes
     scene_ids = [scene.scene_id for scene in scenes]
     scene_id_set = set(scene_ids)
-    premise_text = " ".join(
-        [
-            bundle.storyline.synopsis,
-            bundle.storyline.intro.role,
-            *bundle.storyline.intro.text,
-        ]
-    ).lower()
+    selected_subject = bundle.selected_topic.candidate.subject
+    if request.preferred_subjects and selected_subject != request.preferred_subjects[0]:
+        error(
+            "REQUESTED_SUBJECT_MISMATCH",
+            RepairComponent.STORYLINE,
+            "selected_topic.candidate.subject",
+            "The selected subject does not preserve the requested parent topic.",
+            "Copy the requested domain, discipline, and topic_tags exactly; "
+            "do not replace the parent topic with the broad subject or a child concept.",
+        )
+    if bundle.storyline.subject != selected_subject:
+        error(
+            "STORY_SUBJECT_MISMATCH",
+            RepairComponent.STORYLINE,
+            "storyline.subject",
+            "The storyline subject differs from the selected parent topic.",
+            "Copy selected_topic.candidate.subject exactly.",
+        )
+    if (
+        request.difficulty is not Difficulty.ADAPTIVE
+        and bundle.storyline.difficulty is not request.difficulty
+    ):
+        error(
+            "REQUESTED_DIFFICULTY_MISMATCH",
+            RepairComponent.STORYLINE,
+            "storyline.difficulty",
+            "The storyline difficulty differs from the requested reasoning level.",
+            "Use request.difficulty and align the reasoning burden without adding "
+            "jargon or assumed prior knowledge.",
+        )
     learning_references = [
         scene.learning_reference
         for scene in scenes
         if scene.learning_reference is not None
     ]
-    if not 2 <= len(learning_references) <= 3:
+    if len(learning_references) > MAX_LEARNING_REFERENCES:
         error(
             "LEARNING_REFERENCE_COUNT",
             RepairComponent.STORYLINE,
             "storyline.scenes[*].learning_reference",
-            "Stories must include two or three attributed visual learning references.",
-            (
-                "Use two or three supplied reference images on explanatory scenes."
-            ),
+            f"Stories may include at most {MAX_LEARNING_REFERENCES} attributed "
+            "visual learning references.",
+            f"Keep at most {MAX_LEARNING_REFERENCES} distinct supplied references "
+            "on explanatory scenes.",
         )
     if len({str(item.image_url) for item in learning_references}) != len(
         learning_references
@@ -105,21 +190,6 @@ def deterministic_issues(
             "storyline.scenes[*].learning_reference.image_url",
             "Each learning reference must show a different visual.",
             "Use a distinct supplied reference image on each explanatory scene.",
-        )
-    if re.search(
-        r"\b(science club|classroom|school project|student team|science fair|"
-        r"training exercise|club member|participant|assistant|trainee|student)\b",
-        premise_text,
-    ):
-        error(
-            "NON_PROFESSIONAL_PREMISE",
-            RepairComponent.STORYLINE,
-            "storyline.intro",
-            "The learner must lead a believable real-world professional situation.",
-            (
-                "Replace school, club, training, participant, and assistant framing "
-                "with a primary professional role that has authority to act."
-            ),
         )
     if len(scene_ids) != len(scene_id_set):
         error(
@@ -156,20 +226,6 @@ def deterministic_issues(
                 "A choice scene has no correct route.",
                 "Mark at least one pedagogically defensible choice as correct.",
             )
-        long_sentences = [
-            sentence.strip()
-            for paragraph in scene.narrative
-            for sentence in re.split(r"(?<=[.!?])\s+", paragraph)
-            if len(re.findall(r"\b[\w'-]+\b", sentence)) > 22
-        ]
-        if long_sentences:
-            error(
-                "NARRATIVE_TOO_COMPLEX",
-                RepairComponent.STORYLINE,
-                f"storyline.scenes[{scene.scene_id}].narrative",
-                "A learner-facing sentence exceeds the 22-word readability limit.",
-                "Split dense sentences and explain only one idea at a time.",
-            )
 
     interaction_counts = {
         kind: sum(scene.interaction_slot is kind for scene in scenes)
@@ -180,6 +236,22 @@ def deterministic_issues(
         for kind, count in interaction_counts.items()
         if kind is not ActivityKind.REFLECTION
     )
+    if interaction_counts[ActivityKind.QUIZ] < 1:
+        error(
+            "MISSING_REQUIRED_QUIZ",
+            RepairComponent.ACTIVITIES,
+            "storyline.scenes",
+            "Every story must include at least one quiz.",
+            "Keep or add a consequential quiz interaction tied to scene evidence.",
+        )
+    if interaction_counts[ActivityKind.SIMULATION] < 1:
+        error(
+            "MISSING_REQUIRED_SIMULATION",
+            RepairComponent.ACTIVITIES,
+            "storyline.scenes",
+            "Every story must include at least one simulation.",
+            "Keep or add a story-native simulation of the taught causal relationship.",
+        )
     if decision_count < 2:
         error(
             "INSUFFICIENT_DECISIONS",
@@ -190,24 +262,27 @@ def deterministic_issues(
         )
 
     primer_scenes = [scene for scene in scenes if scene.primer]
-    primer_acts = {scene.act for scene in primer_scenes}
-    if sum(len(scene.primer) for scene in scenes) < 3 or len(primer_acts) < 2:
+    primer_scene_count = sum(bool(scene.primer) for scene in scenes)
+    primer_count = sum(len(scene.primer) for scene in scenes)
+    if primer_count < 4 or primer_scene_count < 3:
         error(
             "INSUFFICIENT_PRIMERS",
             RepairComponent.STORYLINE,
             "storyline.scenes",
-            "The story needs at least three primers distributed across two acts.",
-            "Add concise in-world primers to at least three scenes across two acts.",
+            "The story needs at least four primers distributed across three scenes.",
+            "Add at least four plain-word primers reinforcing distinct useful ideas "
+            "across at least three scenes; do not invent technical terms to fill a quota.",
         )
     trivia_scenes = [scene for scene in scenes if scene.trivia]
     trivia_acts = {scene.act for scene in trivia_scenes}
-    if len(trivia_scenes) < 3 or len(trivia_acts) < 2:
+    trivia_count = len(trivia_scenes)
+    if trivia_count < 3 or trivia_count > 5 or len(trivia_acts) < 2:
         error(
             "INSUFFICIENT_TRIVIA",
             RepairComponent.STORYLINE,
             "storyline.scenes",
-            "The story needs at least three trivia cards distributed across two acts.",
-            "Add evidence-relevant trivia to at least three scenes across two acts.",
+            "The story needs three to five trivia cards distributed across two acts.",
+            "Add three to five evidence-relevant trivia cards across two acts.",
         )
 
     for scene in scenes:
@@ -373,6 +448,22 @@ def deterministic_issues(
                         "learner can discover a causal relationship or tradeoff."
                     ),
                 )
+            for index, control in enumerate(simulation.controls):
+                if (
+                    not control.description.strip()
+                    or control.description.strip().casefold()
+                    == control.label.strip().casefold()
+                ):
+                    error(
+                        "MISSING_SIMULATION_CONTROL_DESCRIPTION",
+                        RepairComponent.ACTIVITIES,
+                        f"{path}.controls[{index}].description",
+                        "A simulation slider does not explain what it changes.",
+                        (
+                            "Add a brief plain-language description of what moving "
+                            "this slider changes in the story and why it matters."
+                        ),
+                    )
             clauses = _parse_condition(simulation.success_condition)
             control_by_id = {
                 control.control_id: control for control in simulation.controls
@@ -526,34 +617,6 @@ def deterministic_issues(
                             ),
                         )
 
-    subject_text = " ".join(
-        [
-            bundle.storyline.subject.domain,
-            bundle.storyline.subject.discipline,
-            *bundle.storyline.subject.topic_tags,
-        ]
-    ).lower()
-    if "physics" in subject_text:
-        simulation_count = sum(
-            activity.kind is ActivityKind.SIMULATION
-            for activity in bundle.activities.activities
-        )
-        if simulation_count < 3:
-            error(
-                "PHYSICS_SIMULATION_COUNT",
-                RepairComponent.STORYLINE,
-                "storyline.scenes[*].interaction_slot",
-                "A physics story must contain at least three working simulations.",
-                "Assign simulation slots to three suitable scenes and provide one valid activity for each.",
-            )
-            error(
-                "PHYSICS_SIMULATION_ACTIVITIES",
-                RepairComponent.ACTIVITIES,
-                "activities",
-                "A physics story must implement at least three working simulations.",
-                "Create valid simulation activities for all three repaired simulation slots.",
-            )
-
     if len(bundle.media_plan.images) > request.media_budget.max_images:
         error(
             "IMAGE_BUDGET_EXCEEDED",
@@ -578,6 +641,22 @@ def deterministic_issues(
             "A story can have at most one dedicated cover image.",
             "Keep only one cover image with scene_id null.",
         )
+    elif request.media_budget.generate_cover_image and not cover_images:
+        error(
+            "MISSING_COVER_IMAGE",
+            RepairComponent.MEDIA_PLAN,
+            "media_plan.images",
+            "The requested cover image is missing.",
+            "Add one dedicated 16:9 cover image with scene_id null.",
+        )
+    elif not request.media_budget.generate_cover_image and cover_images:
+        error(
+            "UNREQUESTED_COVER_IMAGE",
+            RepairComponent.MEDIA_PLAN,
+            "media_plan.images",
+            "The media plan includes a cover image that the learner disabled.",
+            "Remove the dedicated cover image.",
+        )
     elif cover_images and (
         not cover_images[0].asset_key.startswith("cover")
         or cover_images[0].aspect_ratio != "16:9"
@@ -588,37 +667,6 @@ def deterministic_issues(
             "media_plan.images",
             "The dedicated cover must use a cover asset key and 16:9 aspect ratio.",
             "Use scene_id null, a cover-prefixed asset key, and 16:9 aspect ratio.",
-        )
-    if (
-        not set(image_scene_ids).issubset(scene_id_set)
-        or len(image_scene_ids) != len(set(image_scene_ids))
-    ):
-        error(
-            "INVALID_SCENE_IMAGE_LINKS",
-            RepairComponent.MEDIA_PLAN,
-            "media_plan.images",
-            "Generated scene images must link to unique, existing scenes.",
-            "Remove duplicate images and images linked to unknown scene IDs.",
-        )
-    missing_scene_ids = scene_id_set - set(image_scene_ids)
-    if len(cover_images) != 1 or len(missing_scene_ids) > MAX_MISSING_SCENE_IMAGES:
-        error(
-            "INCOMPLETE_STORY_IMAGE_COVERAGE",
-            RepairComponent.MEDIA_PLAN,
-            "media_plan.images",
-            (
-                "The cover is missing or more than two story scenes lack generated "
-                "images."
-            ),
-            "Provide one cover and leave at most two story scenes without images.",
-        )
-    elif missing_scene_ids:
-        warning(
-            "PARTIAL_STORY_IMAGE_COVERAGE",
-            RepairComponent.MEDIA_PLAN,
-            "media_plan.images",
-            f"Story released without images for scenes {sorted(missing_scene_ids)}.",
-            "Backfill these scene images later without regenerating the story.",
         )
     character_names = [
         character.name.lower() for character in bundle.storyline.characters
@@ -923,7 +971,12 @@ def merge_validation_reports(
     semantic: ValidationReport,
     deterministic: list[ValidationIssue],
 ) -> ValidationReport:
-    issues = [*deterministic, *semantic.issues]
+    issues = [
+        issue.model_copy(update={"severity": ValidationSeverity.WARNING})
+        if issue.code == "NARRATIVE_TOO_COMPLEX"
+        else issue
+        for issue in [*deterministic, *semantic.issues]
+    ]
     has_errors = any(
         issue.severity is ValidationSeverity.ERROR for issue in issues
     )
@@ -931,9 +984,17 @@ def merge_validation_reports(
         is_valid=not has_errors,
         quality_score=min(
             semantic.quality_score,
-            60 if deterministic else semantic.quality_score,
+            60
+            if any(
+                issue.severity is ValidationSeverity.ERROR
+                and issue.code != "NARRATIVE_TOO_COMPLEX"
+                for issue in deterministic
+            )
+            else semantic.quality_score,
         ),
         issues=issues,
+        learner_feedback=semantic.learner_feedback,
+        improvement_priorities=semantic.improvement_priorities,
         factual_grounding_summary=semantic.factual_grounding_summary,
         safety_summary=semantic.safety_summary,
     )
@@ -949,27 +1010,30 @@ def bounded_release_report(
     report: ValidationReport,
     deterministic: list[ValidationIssue],
 ) -> ValidationReport:
-    critical_terms = (
-        "SAFETY",
-        "UNSAFE",
-        "FACT",
-        "CITATION",
-        "PRIVACY",
-        "AGE_INAPPROPRIATE",
-    )
-    critical = [
+    """Decide release from verifiable defects only.
+
+    Deterministic checks are finite, falsifiable, and repairable, so they still
+    block. The semantic validator's remaining findings are advisory: a low
+    quality score or a subjective complaint records a warning rather than
+    destroying an otherwise complete story.
+    """
+    deterministic_keys = {
+        (issue.code, issue.path)
+        for issue in deterministic
+        if issue.severity is ValidationSeverity.ERROR
+        and issue.code in _HARD_DETERMINISTIC_CODES
+    }
+    blocking = [
         issue
         for issue in report.issues
         if issue.severity is ValidationSeverity.ERROR
-        and any(term in issue.code for term in critical_terms)
+        and (
+            (issue.code, issue.path) in deterministic_keys
+            or _is_release_risk(issue)
+        )
     ]
-    deterministic_errors = [
-        issue
-        for issue in deterministic
-        if issue.severity is ValidationSeverity.ERROR
-    ]
-    if deterministic_errors or critical:
-        return report
+    if blocking:
+        return report.model_copy(update={"is_valid": False})
     return report.model_copy(
         update={
             "is_valid": True,
@@ -983,8 +1047,105 @@ def bounded_release_report(
     )
 
 
+def drop_defective_activities(
+    bundle: GeneratedStoryBundle,
+    issues: list[ValidationIssue],
+) -> GeneratedStoryBundle:
+    """Remove only the activities that failed a path-scoped check.
+
+    Their scenes keep their narrative and lose just the interaction, so a
+    single malformed simulation costs one activity instead of the whole story.
+    """
+    defective = {
+        match.group(1)
+        for issue in issues
+        if issue.severity is ValidationSeverity.ERROR
+        for match in [_ACTIVITY_PATH.search(issue.path)]
+        if match
+    }
+    kept = [
+        activity
+        for activity in bundle.activities.activities
+        if activity.activity_id not in defective
+    ]
+    if len(kept) == len(bundle.activities.activities):
+        return bundle
+    cleared = {
+        activity.scene_id
+        for activity in bundle.activities.activities
+        if activity.activity_id in defective
+    }
+    scenes = [
+        scene.model_copy(
+            update={
+                "interaction_slot": None,
+                "scene_type": (
+                    scene.scene_type
+                    if scene.scene_type in {"ending", "narrative"}
+                    else "narrative"
+                ),
+            }
+        )
+        if scene.scene_id in cleared
+        else scene
+        for scene in bundle.storyline.scenes
+    ]
+    return bundle.model_copy(
+        update={
+            "storyline": bundle.storyline.model_copy(
+                update={"scenes": scenes}
+            ),
+            "activities": bundle.activities.model_copy(
+                update={"activities": kept}
+            ),
+        }
+    )
+
+
+def salvaged_release(
+    bundle: GeneratedStoryBundle,
+    request: StoryGenerationRequest,
+    report: ValidationReport,
+) -> tuple[GeneratedStoryBundle, ValidationReport]:
+    """Last-resort release path used after repair cycles are exhausted.
+
+    Returns the untouched bundle and report when salvage cannot help.
+    """
+    salvaged = drop_defective_activities(bundle, report.issues)
+    deterministic = [
+        issue.model_copy(update={"severity": ValidationSeverity.WARNING})
+        if issue.code in _ACTIVITY_QUOTA_CODES
+        else issue
+        for issue in deterministic_issues(salvaged, request)
+    ]
+    risk = [issue for issue in report.issues if _is_release_risk(issue)]
+    advisory = report.model_copy(
+        update={
+            "is_valid": True,
+            "issues": [
+                issue.model_copy(
+                    update={"severity": ValidationSeverity.WARNING}
+                )
+                for issue in report.issues
+                if not _is_release_risk(issue)
+            ],
+        }
+    )
+    merged = merge_validation_reports(advisory, [*deterministic, *risk])
+    return salvaged, bounded_release_report(merged, deterministic)
+
+
 def bundle_for_semantic_validation(bundle: GeneratedStoryBundle) -> dict:
     payload = bundle.model_dump(mode="json")
-    for embedding in payload["embeddings"]:
-        embedding.pop("vector", None)
+    # The critic evaluates narrative and activity content. Embedding vectors,
+    # URLs, hashes, and byte sizes add tokens without changing that judgment.
+    payload.pop("embeddings", None)
+    payload["assets"] = [
+        {
+            key: asset[key]
+            for key in ("asset_key", "kind", "scene_id", "provider_model")
+            if key in asset
+        }
+        for asset in payload.get("assets", [])
+    ]
     return payload

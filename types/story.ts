@@ -4,12 +4,16 @@
  */
 
 export type Domain =
+  | "math"
   | "physics"
   | "biology"
   | "economics"
   | "chemistry"
   | "history"
-  | "space";
+  | "space"
+  | "computer-science"
+  | "geography"
+  | "technology";
 
 /** Visual mood for a scene. Maps to a pre-defined gradient/backdrop. */
 export type Mood = "calm" | "tense" | "alarm" | "insight" | "night" | "resolve";
@@ -122,9 +126,15 @@ export interface SceneTrivia {
   title: string;
   /** The fact itself, in one or two plain sentences. */
   text: string;
+  /**
+   * 1-based indices into the story's `citations` list backing this fact.
+   * Empty when the fact is not drawn from a specific numbered source.
+   */
+  citationRefs?: number[];
 }
 
 export interface SceneLearningReference {
+  citationRefs?: number[];
   title: string;
   imageUrl: string;
   sourcePageUrl: string;
@@ -135,6 +145,10 @@ export interface SceneLearningReference {
     | "CC BY-SA 4.0"
     | "CC BY 3.0"
     | "CC BY-SA 3.0"
+    | "CC BY 2.5"
+    | "CC BY-SA 2.5"
+    | "CC BY 2.0"
+    | "CC BY-SA 2.0"
     | "CC0 1.0";
   licenseUrl: string;
   altText: string;
@@ -166,6 +180,7 @@ export interface SceneSimGuide {
 export interface DeclarativeSimulationControl {
   id: string;
   label: string;
+  description: string;
   min: number;
   max: number;
   step: number;
@@ -267,6 +282,12 @@ interface SceneBase {
   trivia?: SceneTrivia;
   /** Attributed open-license visual used to explain the scene's core idea. */
   learningReference?: SceneLearningReference;
+  /**
+   * 1-based indices into the story's `citations` list backing this scene's
+   * narrative facts (and, by construction, its activity's explanation, since
+   * an activity always cites the same sources as its parent scene).
+   */
+  citationRefs?: number[];
 }
 
 export interface NarrativeScene extends SceneBase {
@@ -300,6 +321,7 @@ export interface SliderScene extends SceneBase {
   prompt: string;
   slider: {
     label: string;
+    description: string;
     unit: string;
     min: number;
     max: number;
@@ -402,7 +424,15 @@ export type Scene =
 
 export interface PreSessionQuestion {
   prompt: string;
+  placeholder?: string;
   options: { id: string; label: string; approach: ApproachTag }[];
+}
+
+/** One numbered entry in a story's citation list, resolved from `citationRefs`. */
+export interface StoryCitation {
+  title: string;
+  url: string;
+  sourceName: string | null;
 }
 
 /**
@@ -493,6 +523,8 @@ export interface Scenario {
     src: string;
     loop: boolean;
   };
+  /** Numbered source list referenced by scenes'/trivia's `citationRefs`. */
+  citations?: StoryCitation[];
 }
 
 /* ------------------------------------------------------------------ */

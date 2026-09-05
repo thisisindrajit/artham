@@ -37,8 +37,8 @@ from .constants import (
     IMAGE_REQUEST_TIMEOUT_SECONDS,
     IMAGE_RETRY_SPACING_SECONDS,
 )
-from .clients.vertex import minimal_safe_image_prompt
-from .errors import ProviderError
+from .clients.vertex import GeneratedBinary, minimal_safe_image_prompt
+from .errors import BackendError, ProviderError
 from .runtime import PipelineRuntime
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,16 @@ class TopicResearchAgent(RuntimeNode):
         yield await self._runtime.exa.research_topics(request)
 
 
+class CheckpointStateNode(Node):
+    """Persist a generation checkpoint through the active ADK invocation."""
+
+    async def run_node_impl(
+        self, *, ctx: Context, node_input: Any
+    ) -> AsyncGenerator[Any, None]:
+        ctx.state["checkpoint"] = node_input["checkpoint"]
+        yield {"saved": True}
+
+
 class ImageGenerationAgent(RuntimeNode):
     """Generates every planned image, paced to stay inside the images-per-minute
     quota. Failures are retried once in a second, slower pass so scenes keep
@@ -78,11 +88,23 @@ class ImageGenerationAgent(RuntimeNode):
     ) -> AsyncGenerator[Any, None]:
         job_id = str(node_input["job_id"])
         plan = MediaPlan.model_validate(node_input["media_plan"])
-        assets: list[AssetReference] = []
+        checkpoint = self._runtime.checkpoints.setdefault(job_id, {})
+        planned_keys = {request.asset_key for request in plan.images}
+        assets = [
+            AssetReference.model_validate(item)
+            for item in checkpoint.get("image_assets", [])
+            if isinstance(item, dict) and item.get("asset_key") in planned_keys
+        ]
+        completed_keys = {asset.asset_key for asset in assets}
         deadline = asyncio.get_running_loop().time() + IMAGE_BATCH_TIMEOUT_SECONDS
-        pending = list(plan.images)
+        pending = [
+            request
+            for request in plan.images
+            if request.asset_key not in completed_keys
+        ]
         spacing = IMAGE_REQUEST_SPACING_SECONDS
         first_request = True
+        style_reference: GeneratedBinary | None = None
 
         for attempt in range(2):
             retry: list[Any] = []
@@ -103,7 +125,14 @@ class ImageGenerationAgent(RuntimeNode):
                 cooldown = False
                 try:
                     binary = await asyncio.wait_for(
-                        self._runtime.vertex.generate_image(request),
+                        self._runtime.media.generate_image(
+                            request,
+                            reference=(
+                                style_reference
+                                if request.scene_id is not None
+                                else None
+                            ),
+                        ),
                         timeout=min(IMAGE_REQUEST_TIMEOUT_SECONDS, remaining),
                     )
                 except (ProviderError, TimeoutError) as exc:
@@ -128,8 +157,10 @@ class ImageGenerationAgent(RuntimeNode):
                         retry.append(request)
                         continue
                     raise
-                assets.append(
-                    await self._runtime.backend.upload_asset(
+                if request.scene_id is None:
+                    style_reference = binary
+                try:
+                    uploaded = await self._runtime.backend.upload_asset(
                         job_id=job_id,
                         asset_key=request.asset_key,
                         kind=AssetKind.IMAGE,
@@ -137,7 +168,30 @@ class ImageGenerationAgent(RuntimeNode):
                         scene_id=request.scene_id,
                         alt_text=request.alt_text,
                     )
-                )
+                except BackendError as exc:
+                    if "UPLOAD_INTENT_CONFLICT" in str(exc):
+                        logger.warning(
+                            "omitting optional image %s after upload conflict",
+                            request.asset_key,
+                        )
+                        continue
+                    # The image itself generated fine but the upload didn't
+                    # verifiably land in storage. Give it the same second
+                    # chance as a generation failure rather than trusting a
+                    # reference that may point at nothing.
+                    cooldown = True
+                    logger.warning(
+                        "image %s upload failed on pass %s: %s",
+                        request.asset_key,
+                        attempt + 1,
+                        exc,
+                    )
+                    retry.append(request)
+                    continue
+                assets.append(uploaded)
+                checkpoint["image_assets"] = [
+                    asset.model_dump(mode="json") for asset in assets
+                ]
             if not retry or attempt == 1:
                 if retry:
                     logger.warning(
@@ -168,17 +222,35 @@ class AudioGenerationAgent(RuntimeNode):
         if not plan.audio:
             yield []
             return
+        checkpoint = self._runtime.checkpoints.setdefault(job_id, {})
+        cached = [
+            AssetReference.model_validate(item)
+            for item in checkpoint.get("audio_assets", [])
+            if isinstance(item, dict)
+            and item.get("asset_key") == plan.audio.asset_key
+        ]
+        if cached:
+            yield cached
+            return
         try:
             binary = await self._runtime.vertex.generate_audio(plan.audio)
         except (ProviderError, genai_errors.ClientError):
             yield []
             return
-        asset = await self._runtime.backend.upload_asset(
-            job_id=job_id,
-            asset_key=plan.audio.asset_key,
-            kind=AssetKind.AUDIO,
-            generated=binary,
-        )
+        try:
+            asset = await self._runtime.backend.upload_asset(
+                job_id=job_id,
+                asset_key=plan.audio.asset_key,
+                kind=AssetKind.AUDIO,
+                generated=binary,
+            )
+        except BackendError as exc:
+            # Background audio is optional: an unverifiable upload should
+            # drop the audio, not fail the whole story.
+            logger.warning("dropping background audio after upload failure: %s", exc)
+            yield []
+            return
+        checkpoint["audio_assets"] = [asset.model_dump(mode="json")]
         yield [asset]
 
 
@@ -294,6 +366,7 @@ class PersistenceAgent(RuntimeNode):
 
 def build_provider_nodes(runtime: PipelineRuntime) -> dict[str, Node]:
     return {
+        "checkpoint": CheckpointStateNode(name="checkpoint_state"),
         "engagement": EngagementLoaderAgent(
             name="engagement_loader",
             runtime=runtime,
@@ -340,6 +413,6 @@ def build_provider_nodes(runtime: PipelineRuntime) -> dict[str, Node]:
             name="story_persistence",
             runtime=runtime,
             output_schema=PersistenceReceipt,
-            timeout=90,
+            timeout=600,
         ),
     }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DIFFICULTY_PIPS } from "@/constants/story";
+import { DIFFICULTY_PIPS, DOMAIN_LABELS } from "@/constants/story";
 import {
   capMarker,
   card,
@@ -45,7 +45,7 @@ export function ScenarioCard({
               aria-hidden
               className={`${capMarker} size-1.5 shrink-0 rounded-full bg-accent`}
             />
-            {scenario.domain}
+            {DOMAIN_LABELS[scenario.domain]}
           </span>
 
           <span className="absolute right-3 bottom-3 rounded-full border border-ink/10 bg-white/90 px-2.5 py-1.5 text-[11px] leading-none font-medium text-muted backdrop-blur-sm">

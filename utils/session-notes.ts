@@ -48,3 +48,22 @@ export function digestNotes(notes: SessionNotes): NotesDigest {
     helpRequests: notes.helpRequests,
   };
 }
+
+/** Most-recent-N cap so a long story doesn't balloon the /profile payload. */
+const MAX_DIGEST_ITEMS = 8;
+
+/**
+ * Trims a digest's growable arrays to the most recent items before it is sent
+ * to the profile call — the model builds a profile from patterns, not a full
+ * transcript, so the tail of the session is what matters most.
+ */
+export function capNotesDigest(digest: NotesDigest): NotesDigest {
+  return {
+    ...digest,
+    decisions: digest.decisions.slice(-MAX_DIGEST_ITEMS),
+    mistakes: digest.mistakes.slice(-MAX_DIGEST_ITEMS),
+    experiments: digest.experiments.slice(-MAX_DIGEST_ITEMS),
+    reasoning: digest.reasoning.slice(-MAX_DIGEST_ITEMS),
+    observations: digest.observations.slice(-MAX_DIGEST_ITEMS),
+  };
+}

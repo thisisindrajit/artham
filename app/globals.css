@@ -27,7 +27,9 @@
   /* Placeholder greys. A [data-domain] block always overrides these. */
   --color-accent: #3f3f3f;
   --color-rose: #b3261e;
+  --color-rose-rgb: 179 38 30;
   --color-sage: #2f6d3f;
+  --color-sage-rgb: 47 109 63;
   /* The one fixed splash of brand colour, independent of subject. Decorative
      only - never carries meaning, so it is not held to a text contrast bar. */
   --color-pop: #ff6900; /* orange-500 */
@@ -108,12 +110,62 @@
   --accent-bright-rgb: 43 127 255;
 }
 
+[data-domain="computer-science"] {
+  --color-accent: #615fff;        /* indigo-500 */
+  --accent-rgb: 97 95 255;
+  --accent-bright: #615fff;       /* indigo-500 */
+  --accent-bright-rgb: 97 95 255;
+}
+
+[data-domain="geography"] {
+  --color-accent: #00c950;        /* green-500 */
+  --accent-rgb: 0 201 80;
+  --accent-bright: #00c950;       /* green-500 */
+  --accent-bright-rgb: 0 201 80;
+}
+
+[data-domain="technology"] {
+  --color-accent: #14b8a6;        /* teal-500 */
+  --accent-rgb: 20 184 166;
+  --accent-bright: #14b8a6;       /* teal-500 */
+  --accent-bright-rgb: 20 184 166;
+}
+
+[data-domain="math"] {
+  --color-accent: #e11d48;        /* rose-600 */
+  --accent-rgb: 225 29 72;
+  --accent-bright: #f43f5e;       /* rose-500 */
+  --accent-bright-rgb: 244 63 94;
+}
+
 html,
 body {
   background: var(--bg-0);
   color: var(--color-ink);
   font-family: 'Satoshi', sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.story-prose strong {
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.story-prose em {
+  font-weight: 800;
+  font-style: italic;
+}
+
+/* Dialogue emphasis can be nested in either order by the Markdown parser. */
+.story-prose em strong,
+.story-prose strong:has(em),
+.story-prose strong.story-dialogue {
+  text-decoration: none;
+}
+
+.story-prose strong.story-dialogue {
+  font-style: italic;
 }
 
 /* Mood no longer tints the reading surface - it survives only as a data

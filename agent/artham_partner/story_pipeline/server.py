@@ -33,7 +33,7 @@ from .partner_contracts import (
     ProfileOutput,
     ProfileRequest,
 )
-from .partner_engine import FlashThinkingEngine
+from .partner_engine import ThinkingEngine
 from .runtime import PipelineRuntime
 
 logging.basicConfig(level=os.environ.get("ARTHAM_LOG_LEVEL", "INFO"))
@@ -44,7 +44,8 @@ async def lifespan(app: FastAPI):
     settings = PipelineSettings.from_env()
     runtime = PipelineRuntime.from_settings(settings)
     app.state.story_jobs = StoryJobManager(runtime)
-    app.state.thinking_engine = FlashThinkingEngine(runtime.vertex)
+    await app.state.story_jobs.initialize()
+    app.state.thinking_engine = ThinkingEngine(runtime.reasoning)
     try:
         yield
     finally:
@@ -81,13 +82,16 @@ async def health() -> dict:
         "location": settings.google_cloud_location,
         "vertexConfigured": _vertex_enabled()
         and bool(settings.google_cloud_project),
+        "reasoningConfigured": bool(settings.openai_api_key),
         "exaConfigured": bool(settings.exa_api_key),
         "backendConfigured": bool(
             settings.backend_base_url and settings.backend_api_key
         ),
         "models": {
-            "pipeline": settings.pipeline_model,
-            "fast": settings.fast_model,
+            "architect": settings.pipeline_model,
+            "critic": settings.critic_model,
+            "worker": settings.fast_model,
+            "topic": settings.topic_model,
             "image": settings.image_model,
             "veo": settings.veo_model,
             "lyria": settings.lyria_model,
@@ -173,7 +177,7 @@ def _jobs(request: Request) -> StoryJobManager:
     return manager
 
 
-def _thinking_engine(request: Request) -> FlashThinkingEngine:
+def _thinking_engine(request: Request) -> ThinkingEngine:
     engine = getattr(request.app.state, "thinking_engine", None)
     if engine is None:
         raise HTTPException(

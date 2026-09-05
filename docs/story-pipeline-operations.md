@@ -6,8 +6,9 @@
 - Application Default Credentials with Vertex AI access
 - Exa API credentials
 - The backend APIs in [backend-contracts.md](backend-contracts.md)
-- Vertex access to the configured Gemini, image, Veo, Lyria, and embedding
-  models
+- OpenAI access for GPT-5.4 reasoning through LiteLLM;
+- OpenRouter access for image and video generation;
+- Vertex access to the configured Lyria and embedding models;
 
 Install the agent package:
 
@@ -31,6 +32,15 @@ Run the service:
 npm run agent
 ```
 
+For direct development runs, limit reload watching to the source package so
+dependency installation changes inside `.venv` do not trigger reload loops:
+
+```bash
+cd agent
+.venv/bin/uvicorn artham_partner.story_pipeline.server:app \
+  --host 127.0.0.1 --port 18080 --reload --reload-dir artham_partner
+```
+
 The pipeline can also be inspected through ADK:
 
 ```bash
@@ -42,19 +52,24 @@ cd agent
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `GOOGLE_GENAI_USE_VERTEXAI` | Yes | Must be `TRUE` for ADK Gemini calls |
-| `GOOGLE_CLOUD_PROJECT` | Yes | Vertex project |
-| `GOOGLE_CLOUD_LOCATION` | Yes | Gemini and embedding location, usually `global` |
+| `OPENAI_API_KEY` | Yes | OpenAI authentication used by LiteLLM |
+| `OPENROUTER_API_KEY` | Conditional | Required when any model uses the `openrouter/` prefix; validated at startup |
+| `GOOGLE_GENAI_USE_VERTEXAI` | Yes | Must be `TRUE` for Vertex media calls |
+| `GOOGLE_CLOUD_PROJECT` | Yes | Vertex media and embedding project |
+| `GOOGLE_CLOUD_LOCATION` | Yes | Embedding location, usually `global` |
 | `ARTHAM_VERTEX_MEDIA_LOCATION` | Yes | Legacy Imagen and Veo region |
 | `EXA_API_KEY` | Yes | Exa search authentication |
 | `ARTHAM_BACKEND_BASE_URL` | Yes | Future backend base URL |
 | `ARTHAM_BACKEND_API_KEY` | Yes | Service-to-service bearer token |
-| `ARTHAM_PIPELINE_MODEL` | No | Storyline, activity, validator, and repair model |
-| `ARTHAM_FAST_MODEL` | No | Scout, selector, and video-gate model |
-| `ARTHAM_IMAGE_MODEL` | No | Vertex image model ID |
-| `ARTHAM_VEO_MODEL` | No | Veo model ID |
-| `ARTHAM_LYRIA_MODEL` | No | Lyria model ID |
-| `ARTHAM_EMBEDDING_MODEL` | No | Embedding model ID |
+| `ARTHAM_ARCHITECT_MODEL` | No | Strong LiteLLM model for the compact blueprint; falls back to `ARTHAM_PIPELINE_MODEL` |
+| `ARTHAM_CRITIC_MODEL` | No | Strong LiteLLM model for final semantic findings; defaults to the architect model |
+| `ARTHAM_WORKER_MODEL` | No | Fast LiteLLM model for scene and activity chunks; defaults to `openai/gpt-5.4-mini` |
+| `ARTHAM_TOPIC_MODEL` | No | Fast LiteLLM model for open-ended topic resolution; defaults to the worker model |
+| `ARTHAM_SESSION_DATABASE_URL` | No | Async SQLAlchemy URL used by ADK sessions; local default is persistent SQLite, production may use PostgreSQL with `asyncpg` |
+| `ARTHAM_IMAGE_MODEL` | No | Image model ID; an `openrouter/` prefix routes to OpenRouter, otherwise Vertex |
+| `ARTHAM_VEO_MODEL` | No | Video model ID; an `openrouter/` prefix routes to OpenRouter, otherwise Vertex |
+| `ARTHAM_LYRIA_MODEL` | No | Lyria model ID; always Vertex |
+| `ARTHAM_EMBEDDING_MODEL` | No | Embedding model ID; always Vertex, must stay 768-dimensional |
 | `ARTHAM_PROVIDER_TIMEOUT_SECONDS` | No | Non-media HTTP timeout |
 | `ARTHAM_MEDIA_TIMEOUT_SECONDS` | No | Long-running media timeout |
 | `ARTHAM_MAX_MEDIA_CONCURRENCY` | No | Maximum concurrent media operations; defaults to one |
@@ -82,7 +97,8 @@ Content-Type: application/json
   "excluded_topics": [],
   "locale": "en-US",
   "media_budget": {
-    "max_images": 6,
+    "max_images": 8,
+    "generate_cover_image": true,
     "video": {
       "enabled": true,
       "max_clips": 1,
@@ -97,25 +113,30 @@ The response is `202 Accepted` with `job_id` and `status_url`. Poll
 `GET /story-jobs/{job_id}`. Cancel unfinished work with
 `DELETE /story-jobs/{job_id}`.
 
-Job records are intentionally in memory until the backend exists. They do not
-survive process restarts and cannot coordinate across multiple service
-instances. Move lifecycle ownership to the backend before horizontal scaling.
+Reposting the same request with the same idempotency key resumes a failed job
+under its original job ID and durable ADK session. Job status, request
+fingerprint, invocation diagnostics, and chunk checkpoints are stored by
+`DatabaseSessionService`.
+Startup hydration resumes queued or interrupted jobs. A completed scene or
+activity is persisted immediately and is not regenerated after a process
+restart. Backend persistence remains idempotent because resumed side effects
+have at-least-once semantics.
 
 ## Provider behavior
 
 - Exa uses deep search with highlights and bounded page text.
-- Gemini native image generation returns SynthID-watermarked images and applies
+- Gemini native cover generation returns SynthID-watermarked images and applies
   provider safety controls. Legacy `imagen-*` models remain supported by the
   adapter when available.
-- Provider work is reliability-first and serialized. Reasoning calls are spaced
-  30 seconds apart, image requests 45 seconds apart, and embeddings eight
-  seconds apart.
+- Strong reasoning calls are serialized. Small scene/activity calls run with a
+  bounded concurrency of three. Successful calls have no fixed sleep; backoff
+  begins only after an actual transient provider response.
 - A 429 honors `Retry-After` when supplied and otherwise waits 120 seconds.
   Image batches add a 180-second post-429 cooldown and retry failed images once
   after 120 seconds with a simplified, safety-neutral prompt.
-- Cover, scene images, and requested background audio are release requirements.
-  If any planned asset is still missing after its bounded retry, the job fails
-  before persistence instead of publishing a partial story.
+- Cover and scene images are optional at the provider boundary. A refusal
+  publishes the story without the failed artwork and the UI renders no
+  placeholder. Background audio is required only when explicitly enabled.
 - Veo is disabled to control cost and is absent from the active workflow.
 - Lyria uses the Vertex `interactions` endpoint and produces slow, mild, beatless
   ethereal ambience tailored to the story setting and emotional arc. The prompt

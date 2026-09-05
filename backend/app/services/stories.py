@@ -53,7 +53,11 @@ async def persist_generated_story(
         learner = await session.scalar(
             select(Learner).where(Learner.id == write.bundle.learner_id).with_for_update()
         )
-        if learner is None or not learner.is_active:
+        if learner is None:
+            learner = Learner(id=write.bundle.learner_id)
+            session.add(learner)
+            await session.flush()
+        if not learner.is_active:
             raise APIError(
                 status_code=404,
                 code="LEARNER_NOT_FOUND",

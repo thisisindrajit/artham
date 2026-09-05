@@ -3,7 +3,12 @@ import type React from "react";
 import { SimGuide } from "@/components/sim-kit";
 import { cardSoft, rangeInput, storyOption, storyTag } from "@/constants/ui";
 import type { SliderScene } from "@/lib/story";
-import { driverFor, readoutFor, sliderRisk } from "@/utils/engine-formulas";
+import {
+  driverFor,
+  isSliderCorrect,
+  readoutFor,
+  sliderRisk,
+} from "@/utils/engine-formulas";
 import { sliderTrackGradient } from "@/utils/slider-style";
 import { HelpButton, PrimaryButton } from "./controls";
 import { StoryCopy } from "./shared";
@@ -25,6 +30,7 @@ export function SliderControls({
   const readout = readoutFor(scene, value);
   const driver = driverFor(scene, value);
   const risk = sliderRisk(scene, value);
+  const isTargetValue = isSliderCorrect(scene, value);
   const dynamicDriver = scene.driver.expr === "part_of_total_percent";
   const gap = dynamicDriver
     ? 100 - driver
@@ -46,14 +52,26 @@ export function SliderControls({
     <div className="space-y-8">
       <div className={`${cardSoft} ${storyOption} animate-rise overflow-hidden rounded-2xl motion-reduce:animate-none`}>
         {scene.simGuide && <SimGuide guide={scene.simGuide} />}
-        <SliderMeter scene={scene} risk={risk} readout={readout} driver={driver} />
+        <SliderMeter
+          scene={scene}
+          risk={risk}
+          readout={readout}
+          driver={driver}
+          isTargetValue={isTargetValue}
+        />
 
         <div className="grid grid-cols-3 border-t border-line">
           <Metric
             label={scene.readout.label}
             value={readout.toFixed(scene.readout.decimals)}
             unit={scene.readout.unit}
-            tone={risk > 0.72 ? "rose" : risk > 0.38 ? "accent" : "sage"}
+            tone={
+              isTargetValue
+                ? "sage"
+                : risk > 0.5
+                  ? "rose"
+                  : "accent"
+            }
           />
           <Metric
             label={scene.driver.label}
@@ -65,7 +83,7 @@ export function SliderControls({
             label={gapLabel}
             value={gap.toFixed(scene.readout.decimals)}
             unit={scene.driver.unit}
-            tone={gapSafe ? "sage" : "rose"}
+            tone={isTargetValue && gapSafe ? "sage" : "rose"}
           />
         </div>
 
@@ -81,6 +99,9 @@ export function SliderControls({
               </span>
             </span>
           </div>
+          <p className="text-[12px] leading-[1.4] text-faint">
+            {scene.slider.description}
+          </p>
           <input
             type="range"
             aria-label={scene.slider.label}

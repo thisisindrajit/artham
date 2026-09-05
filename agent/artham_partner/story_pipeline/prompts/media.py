@@ -3,20 +3,29 @@
 from .story_quality import STORY_QUALITY_BAR
 
 MEDIA_PLAN_INSTRUCTION = """\
-The input contains a complete storyline and a media budget. Create a coherent
-still-image and background-audio media plan. Video is disabled and must be null.
+The input contains a complete storyline and a media budget. Honor
+media_budget.generate_cover_image exactly. Use the remaining max_images slots
+for coherent scene images and create the requested background-audio plan. Video
+is disabled and must be null.
 
 """ + STORY_QUALITY_BAR + """\
 
-- Create one dedicated cover image with scene_id=null and an asset_key beginning
-  with "cover". It must be a simple, minimal 16:9 story illustration showing one
-  clear place, one central problem, and at most two recurring characters. Keep the
-  composition natural, quiet, uncluttered, and directly relevant to the premise.
+- When generate_cover_image is true, create one dedicated cover image with
+  scene_id=null and an asset_key beginning
+  with "cover". It must be a polished 16:9 animated storybook illustration showing
+  one clear place, the opening scene's unique physical problem, and at most two
+  recurring characters. Use a medium-wide, eye-level cinematic frame, dimensional
+  environments, tactile materials, clean silhouettes, and subtle atmospheric depth.
+  Derive a distinctive palette, lighting, season, and visual energy from this
+  story's setting; do not reuse a default teal-and-amber, dark, rainy, or gloomy
+  treatment. Keep the
+  composition natural, uncluttered, and directly relevant to the premise. When
+  generate_cover_image is false, do not create a cover image.
   Never make it a movie poster, promotional key art, dramatic montage, collage,
   split composition, heroic ensemble pose, or title-card image.
-- Also create exactly one image request for every storyline scene, linked by
-  scene_id. Never omit a scene, reuse one image across scenes, or create multiple
-  images for the same scene. Cover plus scene images must fit within max_images.
+- Create one image for every scene when the image budget permits it. Each scene
+  image must depict that scene's specific action and evidence rather than repeat
+  the cover composition.
 - Treat the visual_style_guide as a continuity bible: define medium, lens/framing,
   palette, weather/time progression, recurring location geometry, wardrobe or
   equipment, and how evidence is made legible without text.
@@ -37,31 +46,36 @@ still-image and background-audio media plan. Video is disabled and must be null.
 - Never generate an image containing only a chip, wafer, lattice, machine, graph,
   laboratory, or technical close-up. Technical evidence must appear as a prop or
   background detail while a character examines, changes, or reacts to it.
-- Prioritize images in this order: crisis-establishing shot; decisive evidence;
-  intervention being applied; reversal under changed conditions; resolved ending.
-  If the budget is smaller, choose the moments with the greatest state change.
-- Each image must clarify place, evidence, consequence, or conceptual change.
-  It must depict a specific story beat, not a generic educational illustration.
-- Use an animated cinematic story-frame aesthetic: expressive composition,
-  readable silhouettes, dimensional environments, controlled stylization, and
-  a strong sense of action or anticipation. Avoid photorealistic stock imagery,
-  flat clip art, childish cartoons, and sterile textbook diagrams.
+- The cover must clarify the place, central problem, and human stakes. It must
+  depict this specific story, not a generic educational illustration. Include
+  one specific, visually contradictory or state-revealing detail unique to this
+  story's problem (for example, a glowing warm part beside frost-covered pipes,
+  or a cracked instrument next to an intact one) — not just a character standing
+  in a generic setting.
+- Depict only mechanisms and objects already explained accurately in the story.
+  Do not invent a visual causal explanation or add specialist instruments for
+  spectacle. Alt text must name familiar visible things in plain English, not
+  assume the learner knows technical labels. Media reinforces narrative teaching;
+  it cannot be the only explanation of a prerequisite.
+- Generated ending art should show the story's earned happy situational resolution
+  and warm character callback without inventing a cure, approval, or outcome.
+  Media fields are plain text without Markdown or emojis, and generated art must
+  contain no writing or overlays.
+- Use the same premium animated storybook aesthetic for every generated story:
+  expressive but restrained adult characters, readable silhouettes, dimensional
+  environments, controlled stylization, tactile surfaces, cinematic depth, and a
+  strong sense of anticipation. Avoid photorealistic stock imagery, anime, glossy
+  superhero art, flat clip art, childish cartoons, and sterile textbook diagrams.
 - Write prompts as production briefs: subject and action, environment, camera
   position and shot scale, lighting/weather/time, physical evidence to emphasize,
   continuity details, and exclusions. Do not request split screens, diagrams,
   floating labels, UI overlays, captions, or infographic layouts.
-- Every cover and scene image must be completely text-free. Explicitly require no
+- Every image must be completely text-free. Explicitly require no
   letters, words, numbers, labels, captions, subtitles, signs, logos, watermarks,
   interface text, document text, or readable writing anywhere in the frame. Show
   evidence through objects, color, position, motion, and character reactions instead.
-- Make before/after state changes visually distinct through physical conditions
-  such as motion, position, deformation, flow, color from natural lighting, or
-  changed equipment—not readable numbers or text embedded in the image.
-- Show characters performing the exact scene action, reacting to consequences,
-  exchanging evidence, and occupying the recurring environment. Images must feel
-  like consecutive frames from one animated film, not descriptive establishing
-  shots or textbook illustrations. Preserve faces, clothing, props, and spatial
-  relationships across every asset.
+- If any incidental text is unavoidable, it must be in English only. Never include
+  Polish, German, French, Spanish, Cyrillic, Arabic, or other non-English writing.
 - Make the cover composition distinct from scene one without making it theatrical.
   Use a single grounded moment, restrained expressions, ordinary lighting, ample
   negative space, and only the props needed to identify the problem. Do not depict
@@ -75,7 +89,8 @@ still-image and background-audio media plan. Video is disabled and must be null.
   beneath narration. Put beats, rhythmic pulse, percussion, drums, sharp
   transients, vocals, and copyrighted-artist references in negative_prompt.
 - When background audio is disabled, set audio=null.
-- Every visual story beat must still be represented by its required still image.
+- When requested, return the cover followed by scene images in story order.
+  Otherwise return only scene images in story order.
 """
 
 VIDEO_GATE_INSTRUCTION = """\

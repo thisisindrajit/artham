@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-DEFAULT_PIPELINE_MODEL = "gemini-3.7-flash"
-DEFAULT_FAST_MODEL = "gemini-3.7-flash"
+DEFAULT_PIPELINE_MODEL = "vertex_ai/gemini-3.7-flash"
+DEFAULT_FAST_MODEL = "vertex_ai/gemini-3.7-flash"
 DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-lite-image"
 DEFAULT_VEO_MODEL = "veo-3.1-generate-001"
 DEFAULT_LYRIA_MODEL = "lyria-3-clip-preview"
@@ -14,11 +14,14 @@ DEFAULT_EXA_RESULT_COUNT = 12
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
 DEFAULT_MEDIA_TIMEOUT_SECONDS = 900.0
 DEFAULT_MAX_MEDIA_CONCURRENCY = 1
-DEFAULT_MAX_REPAIR_CYCLES = 2
-# Reliability-first pacing. A complete job may take up to 30 minutes, so provider
-# calls are deliberately serialized and kept well below nominal shared quotas.
-PROVIDER_REQUEST_SPACING_SECONDS = 30.0
+DEFAULT_MAX_REPAIR_CYCLES = 1
+MIN_LEARNER_QUALITY_SCORE = 75
+# Successful reasoning calls are paced globally per pipeline run. This prevents
+# parallel scene/activity bursts from exhausting the shared Vertex quota.
+PROVIDER_REQUEST_SPACING_SECONDS = 4.0
 EMBEDDING_REQUEST_SPACING_SECONDS = 8.0
+EMBEDDING_RATE_LIMIT_ATTEMPTS = 4
+EMBEDDING_RATE_LIMIT_BASE_DELAY_SECONDS = 20.0
 TRANSIENT_RETRY_DELAY_SECONDS = 15.0
 RATE_LIMIT_RETRY_DELAY_SECONDS = 120.0
 IMAGE_REQUEST_SPACING_SECONDS = 45.0
@@ -36,6 +39,7 @@ MAX_IMAGE_ASSETS = 12
 MAX_MISSING_SCENE_IMAGES = 2
 MAX_VIDEO_CLIPS = 1
 MAX_VIDEO_SECONDS = 10
+MAX_LEARNING_REFERENCES = 5
 
 ALLOWED_IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
 ALLOWED_VIDEO_MIME_TYPES = {"video/mp4"}

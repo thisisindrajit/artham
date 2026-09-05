@@ -2,7 +2,10 @@ import type { EngineEvent } from "@/types/engine";
 import type { ScenarioContext } from "@/types/partner";
 import type { Scenario } from "@/types/story";
 
-export function scenarioToContext(scenario: Scenario): ScenarioContext {
+export function scenarioToContext(
+  scenario: Scenario,
+  { includeActivitySequence = true }: { includeActivitySequence?: boolean } = {},
+): ScenarioContext {
   return {
     id: scenario.id,
     title: scenario.title,
@@ -10,14 +13,16 @@ export function scenarioToContext(scenario: Scenario): ScenarioContext {
     learningGoal: scenario.learningGoal,
     role: scenario.intro.role,
     greeting: scenario.partnerGreeting,
-    activitySequence: scenario.scenes.map((scene, index) => ({
-      position: index + 1,
-      sceneId: scene.id,
-      beat: scene.beat,
-      activity: scene.simulation
-        ? `simulation + ${scene.type}`
-        : scene.type,
-    })),
+    activitySequence: includeActivitySequence
+      ? scenario.scenes.map((scene, index) => ({
+          position: index + 1,
+          sceneId: scene.id,
+          beat: scene.beat,
+          activity: scene.simulation
+            ? `simulation + ${scene.type}`
+            : scene.type,
+        }))
+      : [],
   };
 }
 

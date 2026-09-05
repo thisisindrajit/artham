@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, HttpUrl, field_validator, model_validator
 
@@ -50,15 +50,18 @@ class RepairComponent(StrEnum):
 
 
 class SubjectRef(ContractModel):
+    # Broad catalog category; discipline is the learner-facing parent topic.
     domain: str = Field(min_length=2, max_length=80)
     discipline: str = Field(min_length=2, max_length=120)
+    # Optional concepts nested beneath the parent topic.
     topic_tags: list[str] = Field(default_factory=list, max_length=12)
 
     @field_validator("discipline")
     @classmethod
     def discipline_is_brief(cls, value: str) -> str:
-        if len(value.split()) > 2:
-            raise ValueError("discipline must contain at most two words")
+        words = [part for part in value.split() if any(char.isalnum() for char in part)]
+        if len(words) > 4:
+            raise ValueError("discipline must contain at most four content words")
         return value
 
 
@@ -81,6 +84,10 @@ class OpenLearningImage(ContractModel):
         "CC BY-SA 4.0",
         "CC BY 3.0",
         "CC BY-SA 3.0",
+        "CC BY 2.5",
+        "CC BY-SA 2.5",
+        "CC BY 2.0",
+        "CC BY-SA 2.0",
         "CC0 1.0",
     ]
     license_url: HttpUrl
@@ -130,14 +137,18 @@ class SceneDraft(ContractModel):
         "narrative", "choice", "slider", "reorder", "reflect", "ending"
     ] | None = None
     mood: Literal["calm", "tense", "alarm", "insight", "night", "resolve"] | None = None
-    beat: str | None = Field(default=None, min_length=2, max_length=32)
+    beat: str | None = Field(default=None, min_length=2, max_length=160)
     hints: list[str] | None = Field(default=None, min_length=3, max_length=3)
     concept: str | None = None
     probe: str | None = None
     primer: list[ScenePrimer] = Field(default_factory=list, max_length=2)
     trivia: SceneTrivia | None = None
+    reference_subject: str | None = Field(default=None, max_length=80)
+    reference_fact: str | None = Field(default=None, min_length=30, max_length=360)
+    reference_fact_citation_refs: list[int] = Field(default_factory=list, max_length=3)
     learning_reference: SceneLearningReference | None = None
     outcome: Literal["success", "partial"] | None = None
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class ScenePrimer(ContractModel):
@@ -150,11 +161,13 @@ class SceneTrivia(ContractModel):
     emoji: str
     title: str
     text: str
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class SceneLearningReference(OpenLearningImage):
     plain_explanation: str
     why_important: str
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
 
 
 class StoryTakeaway(ContractModel):
@@ -174,7 +187,8 @@ class PreSessionOption(ContractModel):
 
 class PreSessionQuestion(ContractModel):
     prompt: str
-    options: list[PreSessionOption]
+    placeholder: str = "Share what you would try first..."
+    options: list[PreSessionOption] = Field(default_factory=list, max_length=4)
 
 
 class StoryIntro(ContractModel):
@@ -243,6 +257,7 @@ class ReorderSpec(ContractModel):
 class SimulationControl(ContractModel):
     control_id: str
     label: str
+    description: str = ""
     minimum: float
     maximum: float
     step: float = Field(gt=0)
@@ -310,6 +325,7 @@ class SliderBand(ContractModel):
 class SliderSpec(ContractModel):
     prompt: str
     label: str
+    description: str = ""
     unit: str = ""
     minimum: float
     maximum: float
@@ -351,6 +367,26 @@ class ActivitySpec(ContractModel):
     simulation: SimulationSpec | None = None
     reflection: ReflectionSpec | None = None
     slider: SliderSpec | None = None
+    citation_refs: list[int] = Field(default_factory=list, max_length=3)
+
+    @model_validator(mode="before")
+    @classmethod
+    def discard_extraneous_payloads(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        kind = value.get("kind")
+        kind_value = kind.value if isinstance(kind, ActivityKind) else kind
+        payload_fields = {item.value for item in ActivityKind}
+        if kind_value not in payload_fields or value.get(kind_value) is None:
+            return value
+        return {
+            **value,
+            **{
+                field: None
+                for field in payload_fields
+                if field != kind_value
+            },
+        }
 
     @model_validator(mode="after")
     def exactly_one_matching_payload(self) -> ActivitySpec:
@@ -485,6 +521,16 @@ class ValidationReport(ContractModel):
     is_valid: bool
     quality_score: int = Field(ge=0, le=100)
     issues: list[ValidationIssue] = Field(default_factory=list, max_length=60)
+    learner_feedback: str = Field(
+        default="The learner review was not recorded for this older story.",
+        min_length=20,
+        max_length=1200,
+    )
+    improvement_priorities: list[str] = Field(
+        default_factory=lambda: ["Keep the story clear and focused."],
+        min_length=1,
+        max_length=6,
+    )
     factual_grounding_summary: str = Field(min_length=20, max_length=1200)
     safety_summary: str = Field(min_length=20, max_length=1200)
 

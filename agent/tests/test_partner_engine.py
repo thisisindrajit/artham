@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
+from artham_partner.story_pipeline.clients.reasoning import (
+    LiteLlmReasoningClient,
+)
 from artham_partner.story_pipeline.partner_contracts import (
     ObserveOutput,
     ObserveRequest,
@@ -13,7 +17,8 @@ from artham_partner.story_pipeline.partner_contracts import (
     ScenarioContext,
     ThinkingObservation,
 )
-from artham_partner.story_pipeline.partner_engine import FlashThinkingEngine
+from artham_partner.story_pipeline.partner_engine import ThinkingEngine
+from tests.helpers import settings
 
 
 def scenario() -> ScenarioContext:
@@ -68,7 +73,53 @@ def notes() -> dict:
     }
 
 
-class FlashThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
+class ThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_litellm_client_retries_malformed_json(self) -> None:
+        malformed = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        parsed=None,
+                        content='{"action":"encourage"',
+                    )
+                )
+            ]
+        )
+        expected = ObserveOutput(
+            action="encourage",
+            message="You adjusted after checking the evidence.",
+            observation=None,
+        )
+        valid = SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        parsed=None,
+                        content=expected.model_dump_json(),
+                    )
+                )
+            ]
+        )
+        client = LiteLlmReasoningClient(settings())
+
+        with patch(
+            "artham_partner.story_pipeline.clients.reasoning.acompletion",
+            new=AsyncMock(side_effect=[malformed, valid]),
+        ) as completion:
+            result = await client.generate_structured(
+                prompt="Review this action.",
+                output_model=ObserveOutput,
+            )
+
+        self.assertEqual(result, expected)
+        self.assertEqual(completion.await_count, 2)
+        response_format = completion.await_args.kwargs["response_format"]
+        self.assertEqual(response_format, {"type": "json_object"})
+        self.assertIn(
+            "previous response violated the output schema",
+            completion.await_args.kwargs["messages"][0]["content"],
+        )
+
     async def test_observe_uses_cumulative_progression(self) -> None:
         observation = ThinkingObservation(
             category="strategy",
@@ -82,9 +133,9 @@ class FlashThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
             message="You checked the signal, then adjusted one value.",
             observation=observation,
         )
-        vertex = AsyncMock()
-        vertex.generate_structured.return_value = expected
-        engine = FlashThinkingEngine(vertex)
+        reasoning = AsyncMock()
+        reasoning.generate_structured.return_value = expected
+        engine = ThinkingEngine(reasoning)
         request = ObserveRequest.model_validate(
             {
                 "scenario": scenario().model_dump(by_alias=True),
@@ -101,7 +152,7 @@ class FlashThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
         result = await engine.observe(request)
 
         self.assertEqual(result, expected)
-        prompt = vertex.generate_structured.await_args.kwargs["prompt"]
+        prompt = reasoning.generate_structured.await_args.kwargs["prompt"]
         self.assertIn("activitySequence", prompt)
         self.assertIn("Tune the order", prompt)
         self.assertIn("Compare suppliers", prompt)
@@ -141,9 +192,9 @@ class FlashThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
             ],
             try_next="Try a market where one signal is delayed.",
         )
-        vertex = AsyncMock()
-        vertex.generate_structured.return_value = expected
-        engine = FlashThinkingEngine(vertex)
+        reasoning = AsyncMock()
+        reasoning.generate_structured.return_value = expected
+        engine = ThinkingEngine(reasoning)
         profile_notes = notes()
         profile_notes["observations"] = [
             {
@@ -165,10 +216,10 @@ class FlashThinkingEngineTests(unittest.IsolatedAsyncioTestCase):
         result = await engine.profile(request)
 
         self.assertEqual(result, expected)
-        prompt = vertex.generate_structured.await_args.kwargs["prompt"]
+        prompt = reasoning.generate_structured.await_args.kwargs["prompt"]
         self.assertIn("model observations", prompt)
         self.assertIn("Revised one value", prompt)
-        self.assertIn("3-6 small details", prompt)
+        self.assertIn("exactly 3-4 small", prompt)
 
 
 if __name__ == "__main__":
